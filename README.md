@@ -2,7 +2,7 @@
 Create color grading 3D LUTs for Smash Ultimate. Learn more about how these textures work and the effects that can be achieved in the [post processing page](https://scanmountgoat.github.io/Smush-Material-Research/post_processing) of the Smash Ultimate material website.  
 
 ## Usage Instructions
-1. Find a screenshot of the stage to edit. Any 8 bit tiff, png, or jpeg will work, but using a screenshot of the actual stage will produce a more accurate result.  
+1. Find a screenshot of the stage to edit. Any 8 bit tiff, png, or jpeg will work, but using a screenshot of the actual stage will produce a more accurate result. The image should be at least 256x256 pixels. 
 2. Drag the screenshot image onto `smush-lut.exe`. 
 3. Edit the generated `.lut.png` image in an image editor like Photoshop, Gimp, etc. Only use adjustments or layers that affect the entire image such as levels, curves, exposure, gradient maps, etc. The LUT can't store the changes in the image made by brushes or image overlays. 
 4. To preview what the final result will look like in game, create a levels adjustment layer at the top of the layer stack. Make sure to disable the layer before saving!
