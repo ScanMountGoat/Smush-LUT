@@ -1,5 +1,5 @@
 # Smush-LUT
-Create color grading 3D LUTs for Smash Ultimate. Learn more about how these textures work and the effects that can be achieved in the [post processing page](https://scanmountgoat.github.io/Smush-Material-Research/post_processing) of the Smash Ultimate material website.  
+Create color grading 3D LUTs for Smash Ultimate. Learn more about how these textures work and the effects that can be achieved in the [post processing page](https://scanmountgoat.github.io/Smush-Material-Research/post_processing) of the Smash Ultimate material website. Download the executable in [Releases](https://github.com/ScanMountGoat/Smush-LUT/releases).
 
 ## Usage Instructions
 1. Find a screenshot of the stage to edit. Any 8 bit tiff, png, or jpeg will work, but using a screenshot of the actual stage will produce a more accurate result. The image should be at least 256x256 pixels. 
