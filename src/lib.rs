@@ -18,11 +18,11 @@ pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
     for z in 0..depth {
         for y in 0..height {
             for x in 0..width {
-                let pixel = img.get_pixel((z * width) + x, y);
-                data.push(pixel[0]);
-                data.push(pixel[1]);
-                data.push(pixel[2]);
-                data.push(pixel[3]);
+                let image::Rgba([r, g, b, a]) = img.get_pixel((z * width) + x, y);
+                data.push(*r);
+                data.push(*g);
+                data.push(*b);
+                data.push(*a);
             }
         }
     }
@@ -37,6 +37,17 @@ pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
 }
 
 pub fn write_lut_to_img(img: &mut RgbaImage) {
+    // Undo the postprocessing to ensure the gradient steps refer to the proper colors.
+    let darken = |u: u8| (u as f32 / 1.4f32) as u8;
+    for pixel in img.pixels_mut() {
+        *pixel = image::Rgba([
+            darken(pixel[0]),
+            darken(pixel[1]),
+            darken(pixel[2]),
+            pixel[3],
+        ]);
+    }
+
     let neutral_lut_linear = create_neutral_lut();
 
     // TODO: Find a cleaner way to write this.
@@ -45,13 +56,10 @@ pub fn write_lut_to_img(img: &mut RgbaImage) {
         for y in 0..16 {
             for x in 0..16 {
                 let offset = ((z * 16 * 16) + (y * 16) + x) * bpp;
-                let r = neutral_lut_linear[offset];
-                let g = neutral_lut_linear[offset + 1];
-                let b = neutral_lut_linear[offset + 2];
-                let a = neutral_lut_linear[offset + 3];
-
-                let pixel = image::Rgba([r, g, b, a]);
-                img.put_pixel((x + (z * 16)) as u32, y as u32, pixel);
+                if let [r, g, b, a] = &neutral_lut_linear[offset..offset + 4] {
+                    let pixel = image::Rgba([*r, *g, *b, *a]);
+                    img.put_pixel((x + (z * 16)) as u32, y as u32, pixel);
+                }
             }
         }
     }
