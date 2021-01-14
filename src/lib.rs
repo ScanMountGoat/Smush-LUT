@@ -43,13 +43,16 @@ pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
 pub fn read_lut<P: AsRef<Path>>(path: P) -> Option<RgbaImage> {
     // TODO: Also parse the footer.
     // TODO: It may be better to add this functionality to the nutexb library once it's more finalized.
-    let mut file = Cursor::new(fs::read(path).ok()?);
-    let mut source_data = [0u8; image_size(16, 16, 16, 4)];
-    file.read_exact(&mut source_data).ok()?;
 
-    let mut destination_data = [0u8; image_size(16, 16, 16, 4)];
-    swizzle(&source_data, &mut destination_data, true);
-    RgbaImage::from_raw(256, 16, destination_data.to_vec())
+    // Read the swizzled image data.
+    let mut file = Cursor::new(fs::read(path).ok()?);
+    let mut swizzled = [0u8; image_size(16, 16, 16, 4)];
+    file.read_exact(&mut swizzled).ok()?;
+
+    // Deswizzle and store into an RGBA buffer.
+    let mut deswizzled = [0u8; image_size(16, 16, 16, 4)];
+    swizzle(&swizzled, &mut deswizzled, true);
+    RgbaImage::from_raw(256, 16, deswizzled.to_vec())
 }
 
 pub fn write_lut_to_img(img: &mut RgbaImage) {
