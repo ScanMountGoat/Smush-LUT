@@ -1,7 +1,10 @@
 use image::RgbaImage;
-use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
+use std::{
+    fs::{self, File},
+    io::Cursor,
+};
 
 // The dimensions and format are constant, so just include the footer.
 static NUTEXB_FOOTER: &[u8] = include_bytes!("footer.bin");
@@ -27,13 +30,26 @@ pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
         }
     }
 
-    let mut swizzled_data = [0u8; 16384];
+    let mut swizzled_data = [0u8; image_size(16, 16, 16, 4)];
     swizzle(&data, &mut swizzled_data, false);
 
     let mut buffer = File::create(path)?;
     buffer.write(&swizzled_data)?;
     buffer.write(NUTEXB_FOOTER)?;
     Ok(())
+}
+
+/// Attempts to read the color grading LUT data from the given path.
+pub fn read_lut<P: AsRef<Path>>(path: P) -> Option<RgbaImage> {
+    // TODO: Also parse the footer.
+    // TODO: It may be better to add this functionality to the nutexb library once it's more finalized.
+    let mut file = Cursor::new(fs::read(path).ok()?);
+    let mut source_data = [0u8; image_size(16, 16, 16, 4)];
+    file.read_exact(&mut source_data).ok()?;
+
+    let mut destination_data = [0u8; image_size(16, 16, 16, 4)];
+    swizzle(&source_data, &mut destination_data, true);
+    RgbaImage::from_raw(256, 16, destination_data.to_vec())
 }
 
 pub fn write_lut_to_img(img: &mut RgbaImage) {
@@ -65,7 +81,11 @@ pub fn write_lut_to_img(img: &mut RgbaImage) {
     }
 }
 
-fn create_neutral_lut() -> [u8; 16384] {
+const fn image_size(width: usize, height: usize, depth: usize, bpp: usize) -> usize {
+    width * height * depth * bpp
+}
+
+fn create_neutral_lut() -> [u8; image_size(16, 16, 16, 4)] {
     // Create a non swizzled 16x16x16 RGB LUT.
     let gradient_values = [
         0u8, 15u8, 30u8, 46u8, 64u8, 82u8, 101u8, 121u8, 140u8, 158u8, 176u8, 193u8, 209u8, 224u8,
@@ -77,7 +97,7 @@ fn create_neutral_lut() -> [u8; 16384] {
     let height = 16;
     let depth = 16;
 
-    let mut result = [0u8; 16384];
+    let mut result = [0u8; image_size(16, 16, 16, 4)];
     for z in 0..depth {
         for y in 0..height {
             for x in 0..width {
@@ -125,6 +145,8 @@ fn swizzle(source: &[u8], destination: &mut [u8], deswizzle: bool) {
     let mut offset_y = 0i32;
     let mut offset_z = 0i32;
 
+    // TODO: There's probably an error condition where this doesn't work.
+    // TODO: Check for invalid offsets after swizzling.
     for z in 0..depth {
         for y in 0..height {
             for x in 0..width {
@@ -158,10 +180,10 @@ mod tests {
         // Make sure deswizzling and then swizzling again is 1:1.
         // This ensures textures will be saved correctly.
         let original = create_neutral_lut();
-        let mut deswizzled = [0u8; 16384];
+        let mut deswizzled = [0u8; image_size(16, 16, 16, 4)];
         swizzle(&original, &mut deswizzled, true);
 
-        let mut reswizzled = [0u8; 16384];
+        let mut reswizzled = [0u8; image_size(16, 16, 16, 4)];
         swizzle(&deswizzled, &mut reswizzled, false);
 
         let matching = original
@@ -169,6 +191,6 @@ mod tests {
             .zip(reswizzled.iter())
             .filter(|&(a, b)| a == b)
             .count();
-        assert_eq!(matching, 16384);
+        assert_eq!(matching, image_size(16, 16, 16, 4));
     }
 }
