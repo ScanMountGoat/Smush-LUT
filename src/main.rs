@@ -22,7 +22,8 @@ fn main() {
                 let mut output = input.clone();
                 output.set_extension("png");
 
-                let lut = smush_lut::read_lut(&input).unwrap();
+                let lut = smush_lut::read_lut_from_nutexb(&input).unwrap();
+                let lut = image::RgbaImage::from_raw(256, 16, lut).unwrap();
                 lut.save(output).unwrap();
             }
             _ => {

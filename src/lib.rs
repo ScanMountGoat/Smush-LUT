@@ -7,10 +7,12 @@ use std::{
 };
 use image::GenericImageView;
 
+mod cube;
+mod swizzle;
+
 // The dimensions and format are constant, so just include the footer.
 static NUTEXB_FOOTER: &[u8] = include_bytes!("footer.bin");
 
-mod swizzle;
 
 pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
     img: &RgbaImage,
@@ -27,19 +29,19 @@ pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
 }
 
 /// Attempts to read the color grading LUT data from the given path.
-pub fn read_lut<P: AsRef<Path>>(path: P) -> Option<RgbaImage> {
+pub fn read_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> Option<Vec<u8>> {
     // TODO: Also parse the footer.
     // TODO: It may be better to add this functionality to the nutexb library once it's more finalized.
 
     // Read the swizzled image data.
-    let mut file = Cursor::new(fs::read(path).ok()?);
+    let mut file = Cursor::new(fs::read(nutexb).ok()?);
     let mut swizzled = [0u8; image_size(16, 16, 16, 4)];
     file.read_exact(&mut swizzled).ok()?;
 
     // Deswizzle and store into an RGBA buffer.
     let mut deswizzled = [0u8; image_size(16, 16, 16, 4)];
     swizzle::swizzle(&swizzled, &mut deswizzled, true);
-    RgbaImage::from_raw(256, 16, deswizzled.to_vec())
+    Some(deswizzled.to_vec())
 }
 
 fn read_lut_from_image(img: &RgbaImage) -> Vec<u8> {
