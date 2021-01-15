@@ -164,6 +164,49 @@ mod tests {
     }
 
     #[test]
+    fn create_from_text_domain_title() {
+        let text = indoc! {r#"
+            # comment
+            DOMAIN_MIN -1 -1 -1
+
+
+            LUT_3D_SIZE 2
+
+            DOMAIN_MAX 1 2 3
+
+            TITLE "lut1"
+
+            # comment
+            0 0 0
+            1 0 0
+            0 .75 0
+            1 .75 0
+            0 .25 1
+            1 .25 1
+            0 1 1
+            1 1 1
+        "#};
+        let cube = CubeLut3d::from_text(text);
+        assert_eq!(cube.title, "lut1");
+        assert_eq!(cube.size, 2);
+        assert_eq!(cube.domain_min, (-1f32, -1f32, -1f32));
+        assert_eq!(cube.domain_max, (1f32, 2f32, 3f32));
+        assert_eq!(
+            cube.data,
+            vec![
+                (0f32, 0f32, 0f32),
+                (1f32, 0f32, 0f32),
+                (0f32, 0.75f32, 0f32),
+                (1f32, 0.75f32, 0f32),
+                (0f32, 0.25f32, 1f32),
+                (1f32, 0.25f32, 1f32),
+                (0f32, 1f32, 1f32),
+                (1f32, 1f32, 1f32)
+            ]
+        );
+    }
+
+    #[test]
     fn create_from_name_size_data() {
         let cube = CubeLut3d::new(
             "cube".into(),
