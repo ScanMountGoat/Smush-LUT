@@ -66,10 +66,16 @@ impl CubeLut3d {
     fn from_text(text: &str) -> CubeLut3d {
         // TODO: read title if present
         // TODO: read domain if present
-        let mut data = Vec::new();
 
         // TODO: Account for whitespace.
-        let size_header = text.lines().next().unwrap();
+        // Skip lines with "#" to ignore comments.
+        let mut lines = text.lines().filter(|s| !s.starts_with("#"));
+        
+        let size_header = (&mut lines)
+            .skip_while(|s| !s.starts_with("LUT_3D_SIZE"))
+            .next()
+            .unwrap();
+
         let size: u32 = size_header
             .split_whitespace()
             .skip(1)
@@ -78,14 +84,12 @@ impl CubeLut3d {
             .parse()
             .unwrap();
 
-        for line in text.lines().skip(1) {
-            // TODO: Handle errors and return a result;
-            for symbol in line.split_whitespace() {
-                println!("{}", symbol);
-                let value: f32 = symbol.parse().unwrap();
-                data.push(value);
-            }
-        }
+        // Parse "0 0 1\n1 0 0..." into a single vector.
+        let data: Vec<f32> = lines
+            .map(|l| l.split_whitespace())
+            .flatten()
+            .filter_map(|s| s.parse().ok())
+            .collect();
 
         // TODO: Make sure the size and the actual data length match.
         CubeLut3d::new("".into(), size, data)
@@ -109,16 +113,21 @@ mod tests {
 
     #[test]
     fn create_from_text_size2() {
-        let text = r"LUT_3D_SIZE 2
-0 0 0
-1 0 0
-0 .75 0
-1 .75 0
-0 .25 1
-1 .25 1
-0 1 1
-1 1 1
-";
+        let text = indoc! {r#"
+            # comment
+
+            LUT_3D_SIZE 2
+
+            # comment
+            0 0 0
+            1 0 0
+            0 .75 0
+            1 .75 0
+            0 .25 1
+            1 .25 1
+            0 1 1
+            1 1 1
+        "#};
         let cube = CubeLut3d::from_text(text);
         assert_eq!(cube.title, "");
         assert_eq!(cube.size, 2);
@@ -152,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn write_default() {
+    fn write_new() {
         let cube = CubeLut3d::new("cube".into(), 2, vec![1f32; 3]);
 
         let mut c = Cursor::new(Vec::new());
