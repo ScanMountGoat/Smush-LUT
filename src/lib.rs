@@ -1,4 +1,5 @@
 use image::{Rgba, RgbaImage};
+use swizzle::swizzle;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::{
@@ -7,8 +8,11 @@ use std::{
 };
 use image::GenericImageView;
 
+pub use self::cube::CubeLut3d;
+
 mod cube;
 mod swizzle;
+mod lut3d;
 
 // The dimensions and format are constant, so just include the footer.
 static NUTEXB_FOOTER: &[u8] = include_bytes!("footer.bin");
@@ -21,6 +25,7 @@ pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
     let data = read_lut_from_image(img);
     let mut swizzled_data = [0u8; image_size(16, 16, 16, 4)];
     swizzle::swizzle(&data, &mut swizzled_data, false);
+
 
     let mut buffer = File::create(path)?;
     buffer.write(&swizzled_data)?;

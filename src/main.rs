@@ -1,3 +1,5 @@
+use std::fs;
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let input = std::path::PathBuf::from(&args[1]);
@@ -25,6 +27,14 @@ fn main() {
                 let lut = smush_lut::read_lut_from_nutexb(&input).unwrap();
                 let lut = image::RgbaImage::from_raw(256, 16, lut).unwrap();
                 lut.save(output).unwrap();
+            }
+            "cube" => {
+                let contents = fs::read_to_string(&input).unwrap();
+
+                // TODO: This can be try_from.
+                let cube = smush_lut::CubeLut3d::from_text(&contents);
+
+                // TODO: Convert to nutexb by default.
             }
             _ => {
                 let mut img = image::open(&input).unwrap().into_rgba8();

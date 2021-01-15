@@ -1,8 +1,10 @@
 use std::io::{BufWriter, Write};
+
+#[cfg(test)]
 use indoc::indoc;
 
 #[derive(Debug, PartialEq)]
-struct CubeLut3d {
+pub struct CubeLut3d {
     title: String,
     size: u8,
     domain_min: (f32, f32, f32),
@@ -11,7 +13,7 @@ struct CubeLut3d {
 }
 
 impl CubeLut3d {
-    fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+    pub fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut file = BufWriter::new(writer);
         file.write(b"#Created by: smush_lut.exe\n")?;
         write!(&mut file, "TITLE \"{}\"\n", self.title)?;
@@ -36,7 +38,7 @@ impl CubeLut3d {
     }
 
     /// Creates a new cube lut with the specified parameters.
-    fn new(
+    pub fn new(
         title: String,
         size: u8,
         domain_min: (f32, f32, f32),
@@ -52,7 +54,7 @@ impl CubeLut3d {
         }
     }
 
-    fn from_text(text: &str) -> CubeLut3d {
+    pub fn from_text(text: &str) -> CubeLut3d {
         // Skip lines with "#" to ignore comments.
         // Trim each line because the spec allows for leading/trailing whitespace.
         let lines: Vec<&str> = text
