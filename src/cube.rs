@@ -1,23 +1,13 @@
-use std::{
-    error::Error,
-    fs::File,
-    io::{BufWriter, Write},
-    path::Path,
-};
-
+use std::io::{BufWriter, Write};
 use indoc::indoc;
-use itertools::Itertools;
 
+#[derive(Debug, PartialEq)]
 struct CubeLut3d {
     title: String,
-    size: u32,
-    domain_min_r: f32,
-    domain_min_g: f32,
-    domain_min_b: f32,
-    domain_max_r: f32,
-    domain_max_g: f32,
-    domain_max_b: f32,
-    data: Vec<f32>,
+    size: u8,
+    domain_min: (f32, f32, f32),
+    domain_max: (f32, f32, f32),
+    data: Vec<(f32, f32, f32)>,
 }
 
 impl CubeLut3d {
@@ -37,62 +27,87 @@ impl CubeLut3d {
         file.write(b"\n")?;
 
         file.write(b"#LUT data points\n")?;
-        for values in self.data.chunks(3) {
-            if let [r, g, b] = values {
-                write!(&mut file, "{} {} {}\n", r, g, b)?;
-            }
+        for (r, g, b) in &self.data {
+            write!(&mut file, "{} {} {}\n", r, g, b)?
         }
 
         file.flush()?;
         Ok(())
     }
 
-    /// Creates a new cube lut with the specified title, data, and size.
-    /// The domain min and max are set to (0.0,0.0,0.0) and (1.0,1.0,1.0) respectively.
-    fn new(title: String, size: u32, data: Vec<f32>) -> CubeLut3d {
+    /// Creates a new cube lut with the specified parameters.
+    fn new(
+        title: String,
+        size: u8,
+        domain_min: (f32, f32, f32),
+        domain_max: (f32, f32, f32),
+        data: Vec<(f32, f32, f32)>,
+    ) -> CubeLut3d {
         CubeLut3d {
             title,
             size,
-            domain_min_r: 0.0f32,
-            domain_min_g: 0.0f32,
-            domain_min_b: 0.0f32,
-            domain_max_r: 1.0f32,
-            domain_max_g: 1.0f32,
-            domain_max_b: 1.0f32,
+            domain_min,
+            domain_max,
             data,
         }
     }
 
     fn from_text(text: &str) -> CubeLut3d {
-        // TODO: read title if present
-        // TODO: read domain if present
-
-        // TODO: Account for whitespace.
         // Skip lines with "#" to ignore comments.
-        let mut lines = text.lines().filter(|s| !s.starts_with("#"));
-        
-        let size_header = (&mut lines)
-            .skip_while(|s| !s.starts_with("LUT_3D_SIZE"))
-            .next()
-            .unwrap();
+        // Trim each line because the spec allows for leading/trailing whitespace.
+        let lines: Vec<&str> = text
+            .lines()
+            .filter(|s| !s.starts_with("#") && !s.is_empty())
+            .map(|s| s.trim())
+            .collect();
 
-        let size: u32 = size_header
-            .split_whitespace()
-            .skip(1)
-            .next()
-            .unwrap()
-            .parse()
-            .unwrap();
+        let mut size: Option<u8> = Option::None;
+
+        // Use the default values if not specified.
+        let mut title: String = "".into();
+        let mut domain_min = (0f32, 0f32, 0f32);
+        let mut domain_max = (1f32, 1f32, 1f32);
+
+        let mut data_starting_line: Option<usize> = Option::None;
+
+        // Keywords can appear in any order.
+        for (i, line) in lines.iter().enumerate() {
+            match line.split_whitespace().collect::<Vec<&str>>()[..] {
+                ["TITLE", value] => title = value.trim_matches('"').to_string(),
+                ["LUT_3D_SIZE", value] => size = Some(value.parse::<u8>().unwrap()),
+                ["DOMAIN_MIN", r, g, b] => {
+                    domain_min = (r.parse().unwrap(), g.parse().unwrap(), b.parse().unwrap())
+                }
+                ["DOMAIN_MAX", r, g, b] => {
+                    domain_max = (r.parse().unwrap(), g.parse().unwrap(), b.parse().unwrap())
+                }
+                [_r, _g, _b] => {
+                    // The data is listed after all keyword lines.
+                    data_starting_line = Some(i);
+                    break;
+                }
+                _ => (),
+            }
+        }
+
+        let parse_rgb = |s: &str| {
+            let mut parts = s.split_whitespace();
+            let r: f32 = parts.next()?.parse().ok()?;
+            let g: f32 = parts.next()?.parse().ok()?;
+            let b: f32 = parts.next()?.parse().ok()?;
+            Some((r, g, b))
+        };
 
         // Parse "0 0 1\n1 0 0..." into a single vector.
-        let data: Vec<f32> = lines
-            .map(|l| l.split_whitespace())
-            .flatten()
-            .filter_map(|s| s.parse().ok())
+        let data_starting_line = data_starting_line.unwrap();
+        let data: Vec<(f32, f32, f32)> = lines[data_starting_line..]
+            .iter()
+            .filter_map(|s| parse_rgb(s))
             .collect();
 
         // TODO: Make sure the size and the actual data length match.
-        CubeLut3d::new("".into(), size, data)
+        // TODO: Size must be greater than 2.
+        CubeLut3d::new(title, size.unwrap(), domain_min, domain_max, data)
     }
 }
 
@@ -131,38 +146,68 @@ mod tests {
         let cube = CubeLut3d::from_text(text);
         assert_eq!(cube.title, "");
         assert_eq!(cube.size, 2);
-        assert_eq!(cube.domain_min_r, 0.0f32);
-        assert_eq!(cube.domain_min_g, 0.0f32);
-        assert_eq!(cube.domain_min_b, 0.0f32);
-        assert_eq!(cube.domain_max_r, 1.0f32);
-        assert_eq!(cube.domain_max_g, 1.0f32);
-        assert_eq!(cube.domain_max_b, 1.0f32);
+        assert_eq!(cube.domain_min, (0f32, 0f32, 0f32));
+        assert_eq!(cube.domain_max, (1f32, 1f32, 1f32));
         assert_eq!(
             cube.data,
             vec![
-                0f32, 0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 0.75f32, 0f32, 1f32, 0.75f32, 0f32, 0f32,
-                0.25f32, 1f32, 1f32, 0.25f32, 1f32, 0f32, 1f32, 1f32, 1f32, 1f32, 1f32
+                (0f32, 0f32, 0f32),
+                (1f32, 0f32, 0f32),
+                (0f32, 0.75f32, 0f32),
+                (1f32, 0.75f32, 0f32),
+                (0f32, 0.25f32, 1f32),
+                (1f32, 0.25f32, 1f32),
+                (0f32, 1f32, 1f32),
+                (1f32, 1f32, 1f32)
             ]
         );
     }
 
     #[test]
     fn create_from_name_size_data() {
-        let cube = CubeLut3d::new("cube".into(), 2, vec![1f32; 8]);
+        let cube = CubeLut3d::new(
+            "cube".into(),
+            2,
+            (0f32, 0f32, 0f32),
+            (1f32, 1f32, 1f32),
+            vec![(1f32, 1f32, 1f32); 8],
+        );
         assert_eq!(cube.title, "cube");
         assert_eq!(cube.size, 2);
-        assert_eq!(cube.domain_min_r, 0.0f32);
-        assert_eq!(cube.domain_min_g, 0.0f32);
-        assert_eq!(cube.domain_min_b, 0.0f32);
-        assert_eq!(cube.domain_max_r, 1.0f32);
-        assert_eq!(cube.domain_max_g, 1.0f32);
-        assert_eq!(cube.domain_max_b, 1.0f32);
-        assert_eq!(cube.data, vec![1f32; 8]);
+        assert_eq!(cube.domain_min, (0f32, 0f32, 0f32));
+        assert_eq!(cube.domain_max, (1f32, 1f32, 1f32));
+        assert_eq!(cube.data, vec![(1f32, 1f32, 1f32); 8]);
+    }
+
+    #[test]
+    fn read_write() {
+        // Make sure the parser and writer are compatible.
+        let cube = CubeLut3d::new(
+            "cube".into(),
+            2,
+            (0f32, 0f32, 0f32),
+            (1f32, 1f32, 1f32),
+            vec![(0.5f32, 0.5f32, 0.5f32); 8],
+        );
+
+        let mut c = Cursor::new(Vec::new());
+        cube.write(&mut c).unwrap();
+
+        let text = get_string(&mut c).unwrap();
+        let new_cube = CubeLut3d::from_text(&text);
+
+        assert_eq!(cube, new_cube);
     }
 
     #[test]
     fn write_new() {
-        let cube = CubeLut3d::new("cube".into(), 2, vec![1f32; 3]);
+        let cube = CubeLut3d::new(
+            "cube".into(),
+            2,
+            (0f32, 0f32, 0f32),
+            (1f32, 1f32, 1f32),
+            vec![(1f32, 1f32, 1f32); 8],
+        );
 
         let mut c = Cursor::new(Vec::new());
         cube.write(&mut c).unwrap();
@@ -181,6 +226,13 @@ mod tests {
             DOMAIN_MAX 1.0 1.0 1.0
             
             #LUT data points
+            1 1 1
+            1 1 1
+            1 1 1
+            1 1 1
+            1 1 1
+            1 1 1
+            1 1 1
             1 1 1
         "#};
 
