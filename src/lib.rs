@@ -1,63 +1,53 @@
-use image::{Rgba, RgbaImage};
-use swizzle::swizzle;
-use std::io::{Read, Write};
+use image::RgbaImage;
+use lut3d::{Lut3dLinear, Lut3dSwizzled};
 use std::path::Path;
+use std::{
+    convert::TryFrom,
+    io::{Read, Write},
+};
 use std::{
     fs::{self, File},
     io::Cursor,
 };
-use image::GenericImageView;
 
 pub use self::cube::CubeLut3d;
 
 mod cube;
-mod swizzle;
 mod lut3d;
+mod swizzle;
 
 // The dimensions and format are constant, so just include the footer.
 static NUTEXB_FOOTER: &[u8] = include_bytes!("footer.bin");
-
 
 pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
     img: &RgbaImage,
     path: &P,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = read_lut_from_image(img);
-    let mut swizzled_data = [0u8; image_size(16, 16, 16, 4)];
-    swizzle::swizzle(&data, &mut swizzled_data, false);
-
+    let linear = Lut3dLinear::try_from(img)?;
+    let swizzled: Lut3dSwizzled = linear.into();
 
     let mut buffer = File::create(path)?;
-    buffer.write(&swizzled_data)?;
+    buffer.write(&swizzled.data)?;
     buffer.write(NUTEXB_FOOTER)?;
     Ok(())
 }
 
 /// Attempts to read the color grading LUT data from the given path.
-pub fn read_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> Option<Vec<u8>> {
+pub fn read_image_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> Option<RgbaImage> {
     // TODO: Also parse the footer.
     // TODO: It may be better to add this functionality to the nutexb library once it's more finalized.
 
     // Read the swizzled image data.
     let mut file = Cursor::new(fs::read(nutexb).ok()?);
-    let mut swizzled = [0u8; image_size(16, 16, 16, 4)];
-    file.read_exact(&mut swizzled).ok()?;
+    let mut data = Vec::with_capacity(image_size(16, 16, 16, 4));
+    file.read_exact(&mut data).ok()?;
 
-    // Deswizzle and store into an RGBA buffer.
-    let mut deswizzled = [0u8; image_size(16, 16, 16, 4)];
-    swizzle::swizzle(&swizzled, &mut deswizzled, true);
-    Some(deswizzled.to_vec())
+    let swizzled = Lut3dSwizzled { size: 16, data };
+    let linear: Lut3dLinear = swizzled.into();
+    RgbaImage::try_from(linear).ok()
 }
 
-fn read_lut_from_image(img: &RgbaImage) -> Vec<u8> {
-    let mut data = Vec::new();
-    for (_,_, Rgba(bytes)) in img.view(0, 0, 256, 16).pixels() {
-        data.extend_from_slice(&bytes);
-    }
-    data
-}
-
-pub fn write_lut_to_img(img: &mut RgbaImage) {
+pub fn write_neutral_lut_to_img(img: &mut RgbaImage) {
     // Undo the postprocessing to ensure the gradient steps refer to the proper colors.
     let darken = |u: u8| (u as f32 / 1.4f32) as u8;
     for pixel in img.pixels_mut() {
@@ -116,4 +106,3 @@ fn create_neutral_lut() -> [u8; image_size(16, 16, 16, 4)] {
     }
     result
 }
-
