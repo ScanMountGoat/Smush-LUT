@@ -2,7 +2,10 @@ use std::convert::TryFrom;
 
 use image::RgbaImage;
 
-use crate::swizzle::swizzle;
+use crate::{swizzle::swizzle, CubeLut3d};
+
+#[cfg(test)]
+use indoc::indoc;
 
 /// A 3D RGBA LUT with unswizzled data in row major order.
 /// Values are written to data using a nested ZYX loops with X being the innermost loop.
@@ -30,7 +33,7 @@ impl AsRef<[u8]> for Lut3dLinear {
 }
 
 impl From<Lut3dSwizzled> for Lut3dLinear {
-    /// Deswizzles the data in value to create a `Lut3dLinear` of identical size.
+    /// Deswizzle the data in value to create a `Lut3dLinear` of identical size.
     fn from(value: Lut3dSwizzled) -> Self {
         let mut data = vec![0u8; value.data.len()];
         swizzle(&value.data, &mut data, true);
@@ -41,8 +44,30 @@ impl From<Lut3dSwizzled> for Lut3dLinear {
     }
 }
 
+impl From<CubeLut3d> for Lut3dLinear {
+    fn from(value: CubeLut3d) -> Self {
+        let mut data = Vec::new();
+
+        // TODO: How to handle out of range values?
+        let to_u8 = |f: f32| (f * 255f32).min(255f32).round() as u8;
+
+        for &(r, g, b) in value.data() {
+            // Always use 255u8 for alpha to match in game nutexb LUTs.
+            data.push(to_u8(r));
+            data.push(to_u8(g));
+            data.push(to_u8(b));
+            data.push(255u8);
+        }
+
+        Lut3dLinear {
+            size: value.size() as u32,
+            data,
+        }
+    }
+}
+
 // TODO: Implement for non reference as well?
-impl TryFrom<& RgbaImage> for Lut3dLinear {
+impl TryFrom<&RgbaImage> for Lut3dLinear {
     type Error = &'static str;
 
     /// Tries to convert an image with slices in z arranged horizontally along the top of the image.
@@ -83,7 +108,7 @@ impl Lut3dSwizzled {
     pub fn size(&self) -> u32 {
         self.size
     }
-    
+
     pub fn new(size: u32, data: Vec<u8>) -> Lut3dSwizzled {
         Lut3dSwizzled { size, data }
     }
@@ -96,7 +121,7 @@ impl AsRef<[u8]> for Lut3dSwizzled {
 }
 
 impl From<Lut3dLinear> for Lut3dSwizzled {
-    /// Swizzles the data in value to create a `Lut3dLinear` of identical size.
+    /// Swizzle the data in value to create a `Lut3dLinear` of identical size.
     fn from(value: Lut3dLinear) -> Self {
         let mut data = vec![0u8; value.data.len()];
         swizzle(&value.data, &mut data, false);
@@ -111,6 +136,44 @@ impl From<Lut3dLinear> for Lut3dSwizzled {
 mod tests {
     use super::*;
 
+    fn assert_slices_are_equal<T: Eq + std::fmt::Debug>(a: &[T], b: &[T]) {
+        assert_eq!(a.len(), b.len());
+        for (elem1, elem2) in a.iter().zip(b.iter()) {
+            assert_eq!(elem1, elem2, "{:?} does not equal {:?}", elem1, elem2);
+        }
+    }
+
+    #[test]
+    fn cube_to_linear() {
+        let text = indoc! {r#"
+            # comment
+
+            LUT_3D_SIZE 2
+
+            # comment
+            0 0 0
+            1 0 0
+            0 .75 0
+            1 .75 0
+            0 .25 1
+            1 .25 1
+            0 1 1
+            1 1 1
+        "#};
+        let cube = CubeLut3d::from_text(text);
+        let linear = Lut3dLinear::from(cube);
+
+        assert_eq!(2, linear.size);
+        assert_slices_are_equal(
+            &linear.data,
+            &[
+                0u8, 0u8, 0u8, 255u8, 255u8, 0u8, 0u8, 255u8, 0u8, 191u8, 0u8, 255u8, 255u8, 191u8,
+                0u8, 255u8, 0u8, 64u8, 255u8, 255u8, 255u8, 64u8, 255u8, 255u8, 0u8, 255u8, 255u8,
+                255u8, 255u8, 255u8, 255u8, 255u8,
+            ],
+        )
+    }
+
     #[test]
     fn linear_to_rgba() {
         let data = crate::create_neutral_lut().to_vec();
@@ -123,12 +186,7 @@ mod tests {
 
         // Make sure the pixel values were copied correctly.
         let data = crate::create_neutral_lut().to_vec();
-        let matching = data
-            .iter()
-            .zip(img.as_flat_samples().samples)
-            .filter(|&(a, b)| a == b)
-            .count();
-        assert_eq!(matching, data.len());
+        assert_slices_are_equal(&data, &img.as_flat_samples().samples);
     }
 
     #[test]
@@ -142,12 +200,7 @@ mod tests {
 
         // Make sure the pixel values were copied correctly.
         let data = crate::create_neutral_lut().to_vec();
-        let matching = data
-            .iter()
-            .zip(linear.data.iter())
-            .filter(|&(a, b)| a == b)
-            .count();
-        assert_eq!(matching, data.len());
+        assert_slices_are_equal(&data, &linear.data);
     }
 
     #[test]
@@ -200,11 +253,6 @@ mod tests {
 
         assert_eq!(16u32, linear.size);
 
-        let matching = data
-            .iter()
-            .zip(linear.data.iter())
-            .filter(|&(a, b)| a == b)
-            .count();
-        assert_eq!(matching, crate::image_size(16, 16, 16, 4));
+        assert_slices_are_equal(&data, &linear.data);
     }
 }

@@ -13,6 +13,26 @@ pub struct CubeLut3d {
 }
 
 impl CubeLut3d {
+    pub fn size(&self) -> u8 {
+        self.size
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn domain_min(&self) -> (f32,f32,f32) {
+        self.domain_min
+    }
+
+    pub fn domain_max(&self) -> (f32,f32,f32) {
+        self.domain_max
+    }
+
+    pub fn data(&self) -> &[(f32,f32,f32)] {
+        &self.data
+    }
+
     pub fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut file = BufWriter::new(writer);
         file.write(b"#Created by: smush_lut.exe\n")?;
