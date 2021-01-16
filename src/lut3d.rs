@@ -4,18 +4,28 @@ use image::RgbaImage;
 
 use crate::swizzle::swizzle;
 
-/// A 3d LUT with unswizzled data in row major order.
+/// A 3D RGBA LUT with unswizzled data in row major order.
 /// Values are written to data using a nested ZYX loops with X being the innermost loop.
 #[derive(Debug, PartialEq)]
 pub struct Lut3dLinear {
-    // TODO: does this need to be public?
-    pub size: u32,
-    pub data: Vec<u8>,
+    size: u32,
+    data: Vec<u8>,
 }
 
 impl Lut3dLinear {
+    /// The dimension of the LUT for each axis. A LUT with size 16 will have 16x16x16 RGBA values.
+    pub fn size(&self) -> u32 {
+        self.size
+    }
+
     pub fn new(size: u32, data: Vec<u8>) -> Lut3dLinear {
         Lut3dLinear { size, data }
+    }
+}
+
+impl AsRef<[u8]> for Lut3dLinear {
+    fn as_ref(&self) -> &[u8] {
+        &self.data
     }
 }
 
@@ -60,17 +70,28 @@ impl TryFrom<Lut3dLinear> for RgbaImage {
     }
 }
 
-/// A 3d LUT with swizzled data.
+/// A 3D RGBA LUT with swizzled data.
 #[derive(Debug, PartialEq)]
 pub struct Lut3dSwizzled {
-    // TODO: does this need to be public?
-    pub size: u32,
-    pub data: Vec<u8>,
+    size: u32,
+    data: Vec<u8>,
 }
 
+// TODO: Wrap this into another trait to store size, data by ref, etc?
 impl Lut3dSwizzled {
+    /// The dimension of the LUT for each axis. A LUT with size 16 will have 16x16x16 RGBA values.
+    pub fn size(&self) -> u32 {
+        self.size
+    }
+    
     pub fn new(size: u32, data: Vec<u8>) -> Lut3dSwizzled {
         Lut3dSwizzled { size, data }
+    }
+}
+
+impl AsRef<[u8]> for Lut3dSwizzled {
+    fn as_ref(&self) -> &[u8] {
+        &self.data
     }
 }
 

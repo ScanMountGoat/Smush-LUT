@@ -27,7 +27,7 @@ pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
     let swizzled: Lut3dSwizzled = linear.into();
 
     let mut buffer = File::create(path)?;
-    buffer.write(&swizzled.data)?;
+    buffer.write(swizzled.as_ref())?;
     buffer.write(NUTEXB_FOOTER)?;
     Ok(())
 }
@@ -42,7 +42,7 @@ pub fn read_image_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> Option<RgbaImage
     let mut data = Vec::with_capacity(image_size(16, 16, 16, 4));
     file.read_exact(&mut data).ok()?;
 
-    let swizzled = Lut3dSwizzled { size: 16, data };
+    let swizzled = Lut3dSwizzled::new(16, data);
     let linear: Lut3dLinear = swizzled.into();
     RgbaImage::try_from(linear).ok()
 }
