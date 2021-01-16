@@ -19,7 +19,8 @@ mod swizzle;
 // The dimensions and format are constant, so just include the footer.
 static NUTEXB_FOOTER: &[u8] = include_bytes!("footer.bin");
 
-pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
+/// Convert an image with dimensions ((size * size), size) to a Nutexb LUT. 
+pub fn img_to_nutexb<P: AsRef<Path>>(
     img: &RgbaImage,
     path: &P,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -32,17 +33,37 @@ pub fn write_nutexb<P: AsRef<Path> + ?Sized>(
     Ok(())
 }
 
+/// Convert a .cube file to Nutexb.
+pub fn cube_to_nutexb<P: AsRef<Path>>(
+    cube: CubeLut3d,
+    path: &P,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let linear = Lut3dLinear::from(cube);
+    
+    // TODO: This only works for size 16.
+    let swizzled: Lut3dSwizzled = linear.into();
+
+    let mut buffer = File::create(path)?;
+    buffer.write(swizzled.as_ref())?;
+    buffer.write(NUTEXB_FOOTER)?;
+    Ok(())
+}
+
 /// Attempts to read the color grading LUT data from the given path.
-pub fn read_image_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> Option<RgbaImage> {
+pub fn nutexb_to_image<P: AsRef<Path>>(nutexb: P) -> Option<RgbaImage> {
     // TODO: Also parse the footer.
     // TODO: It may be better to add this functionality to the nutexb library once it's more finalized.
 
     // Read the swizzled image data.
     let mut file = Cursor::new(fs::read(nutexb).ok()?);
-    let mut data = Vec::with_capacity(image_size(16, 16, 16, 4));
+    let mut data = [0u8; image_size(16, 16, 16, 4)];
     file.read_exact(&mut data).ok()?;
+    
+    println!("{:?}", data.len());
 
-    let swizzled = Lut3dSwizzled::new(16, data);
+
+    let swizzled = Lut3dSwizzled::new(16, data.to_vec());
+    println!("{:?}", swizzled.as_ref().len());
     let linear: Lut3dLinear = swizzled.into();
     RgbaImage::try_from(linear).ok()
 }

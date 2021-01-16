@@ -21,15 +21,15 @@ impl CubeLut3d {
         &self.title
     }
 
-    pub fn domain_min(&self) -> (f32,f32,f32) {
+    pub fn domain_min(&self) -> (f32, f32, f32) {
         self.domain_min
     }
 
-    pub fn domain_max(&self) -> (f32,f32,f32) {
+    pub fn domain_max(&self) -> (f32, f32, f32) {
         self.domain_max
     }
 
-    pub fn data(&self) -> &[(f32,f32,f32)] {
+    pub fn data(&self) -> &[(f32, f32, f32)] {
         &self.data
     }
 
@@ -79,8 +79,8 @@ impl CubeLut3d {
         // Trim each line because the spec allows for leading/trailing whitespace.
         let lines: Vec<&str> = text
             .lines()
-            .filter(|s| !s.starts_with("#") && !s.is_empty())
             .map(|s| s.trim())
+            .filter(|s| !s.starts_with("#") && !s.is_empty())
             .collect();
 
         let mut size: Option<u8> = Option::None;
@@ -94,21 +94,35 @@ impl CubeLut3d {
 
         // Keywords can appear in any order.
         for (i, line) in lines.iter().enumerate() {
-            match line.split_whitespace().collect::<Vec<&str>>()[..] {
-                ["TITLE", value] => title = value.trim_matches('"').to_string(),
-                ["LUT_3D_SIZE", value] => size = Some(value.parse::<u8>().unwrap()),
-                ["DOMAIN_MIN", r, g, b] => {
-                    domain_min = (r.parse().unwrap(), g.parse().unwrap(), b.parse().unwrap())
+            let mut parts = line.split_whitespace();
+            match parts.next() {
+                Some("TITLE") => {
+                    // TODO: Don't ignore errors.
+                    // The title is within double quotes, so just grab the middle part.
+                    title = line.split('"').skip(1).next().unwrap().into();
                 }
-                ["DOMAIN_MAX", r, g, b] => {
-                    domain_max = (r.parse().unwrap(), g.parse().unwrap(), b.parse().unwrap())
+                Some("LUT_3D_SIZE") => size = Some(parts.next().unwrap().parse().unwrap()),
+                Some("DOMAIN_MIN") => {
+                    let values: Vec<f32> = parts
+                        .take(3)
+                        .filter_map(|f| f.parse::<f32>().ok())
+                        .collect();
+                    // TODO: This may fail.
+                    domain_min = (values[0], values[1], values[2])
                 }
-                [_r, _g, _b] => {
+                Some("DOMAIN_MAX") => {
+                    let values: Vec<f32> = parts
+                        .take(3)
+                        .filter_map(|f| f.parse::<f32>().ok())
+                        .collect();
+                    // TODO: This may fail.
+                    domain_max = (values[0], values[1], values[2])
+                }
+                _ => {
                     // The data is listed after all keyword lines.
                     data_starting_line = Some(i);
                     break;
                 }
-                _ => (),
             }
         }
 
@@ -213,6 +227,40 @@ mod tests {
         assert_eq!(cube.size, 2);
         assert_eq!(cube.domain_min, (-1f32, -1f32, -1f32));
         assert_eq!(cube.domain_max, (1f32, 2f32, 3f32));
+        assert_eq!(
+            cube.data,
+            vec![
+                (0f32, 0f32, 0f32),
+                (1f32, 0f32, 0f32),
+                (0f32, 0.75f32, 0f32),
+                (1f32, 0.75f32, 0f32),
+                (0f32, 0.25f32, 1f32),
+                (1f32, 0.25f32, 1f32),
+                (0f32, 1f32, 1f32),
+                (1f32, 1f32, 1f32)
+            ]
+        );
+    }
+
+    #[test]
+    fn create_from_text_title_spaces() {
+        let text = indoc! {r#"
+            LUT_3D_SIZE 2
+            TITLE " a  b    c "
+            0 0 0
+            1 0 0
+            0 .75 0
+            1 .75 0
+            0 .25 1
+            1 .25 1
+            0 1 1
+            1 1 1
+        "#};
+        let cube = CubeLut3d::from_text(text);
+        assert_eq!(cube.title, " a  b    c ");
+        assert_eq!(cube.size, 2);
+        assert_eq!(cube.domain_min, (0f32, 0f32, 0f32));
+        assert_eq!(cube.domain_max, (1f32, 1f32, 1f32));
         assert_eq!(
             cube.data,
             vec![

@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path::Path};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -11,7 +11,7 @@ fn main() {
             let mut output = input.clone();
             output.set_extension("png");
 
-            let img = smush_lut::read_image_lut_from_nutexb(&input).unwrap();
+            let img = smush_lut::nutexb_to_image(&input).unwrap();
             img.save(output).unwrap();
         }
         "cube" => {
@@ -19,12 +19,13 @@ fn main() {
 
             // TODO: This can be try_from.
             let cube = smush_lut::CubeLut3d::from_text(&contents);
-
-            // TODO: Convert to nutexb by default.
+            // TODO: modify the input path?
+            smush_lut::cube_to_nutexb(cube, &Path::new("color_grading_lut.nutexb")).unwrap();
         }
         _ => {
             let img = image::open(&input).unwrap().into_rgba8();
-            smush_lut::write_nutexb(&img, "color_grading_lut.nutexb").unwrap();
+            // TODO: modify the input path?
+            smush_lut::img_to_nutexb(&img, &Path::new("color_grading_lut.nutexb")).unwrap();
         }
     }
 }
