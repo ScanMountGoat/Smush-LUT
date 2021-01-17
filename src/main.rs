@@ -17,10 +17,10 @@ fn main() {
         "cube" => {
             let contents = fs::read_to_string(&input).unwrap();
 
-            // TODO: This can be try_from.
+            // TODO: this should by try_from
             let cube = smush_lut::CubeLut3d::from_text(&contents);
 
-            // TODO: This can be try_from.
+            // TODO: this should by try_from
             Some(cube.into())
         }
         _ => {
@@ -37,7 +37,8 @@ fn main() {
             smush_lut::linear_lut_to_nutexb(lut_linear, &output).unwrap();
         }
         "cube" => {
-            // TODO:
+            // TODO: this should by try_from
+            smush_lut::linear_lut_to_cube(lut_linear, &output).unwrap();
         }
         _ => {
             // Assume anything else is some form of supported image format.
@@ -45,5 +46,4 @@ fn main() {
             img.save(output).unwrap();
         }
     }
-
 }

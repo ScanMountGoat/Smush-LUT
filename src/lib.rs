@@ -120,3 +120,10 @@ fn create_neutral_lut() -> [u8; image_size(16, 16, 16, 4)] {
     }
     result
 }
+
+pub fn linear_lut_to_cube(lut_linear: Lut3dLinear, output: &std::path::PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let cube = CubeLut3d::from(lut_linear);
+    let mut file = File::create(output)?;
+    cube.write(&mut file)?;
+    Ok(())
+}

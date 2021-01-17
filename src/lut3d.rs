@@ -136,13 +136,6 @@ impl From<Lut3dLinear> for Lut3dSwizzled {
 mod tests {
     use super::*;
 
-    fn assert_slices_are_equal<T: Eq + std::fmt::Debug>(a: &[T], b: &[T]) {
-        assert_eq!(a.len(), b.len());
-        for (elem1, elem2) in a.iter().zip(b.iter()) {
-            assert_eq!(elem1, elem2, "{:?} does not equal {:?}", elem1, elem2);
-        }
-    }
-
     #[test]
     fn cube_to_linear() {
         let text = indoc! {r#"
@@ -164,7 +157,7 @@ mod tests {
         let linear = Lut3dLinear::from(cube);
 
         assert_eq!(2, linear.size);
-        assert_slices_are_equal(
+        itertools::assert_equal(
             &linear.data,
             &[
                 0u8, 0u8, 0u8, 255u8, 255u8, 0u8, 0u8, 255u8, 0u8, 191u8, 0u8, 255u8, 255u8, 191u8,
@@ -186,7 +179,7 @@ mod tests {
 
         // Make sure the pixel values were copied correctly.
         let data = crate::create_neutral_lut().to_vec();
-        assert_slices_are_equal(&data, &img.as_flat_samples().samples);
+        itertools::assert_equal(&data, img.as_flat_samples().samples.into_iter());
     }
 
     #[test]
@@ -200,7 +193,7 @@ mod tests {
 
         // Make sure the pixel values were copied correctly.
         let data = crate::create_neutral_lut().to_vec();
-        assert_slices_are_equal(&data, &linear.data);
+        itertools::assert_equal(&data, &linear.data);
     }
 
     #[test]
@@ -253,6 +246,6 @@ mod tests {
 
         assert_eq!(16u32, linear.size);
 
-        assert_slices_are_equal(&data, &linear.data);
+        itertools::assert_equal(&data, &linear.data);
     }
 }
