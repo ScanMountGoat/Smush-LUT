@@ -246,6 +246,6 @@ mod tests {
 
         assert_eq!(16u32, linear.size);
 
-        itertools::assert_equal(&data, &linear.data);
+        itertools::assert_equal(data.iter(), &linear.data);
     }
 }
