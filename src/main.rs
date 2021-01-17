@@ -1,31 +1,49 @@
-use std::{fs, path::Path};
+use std::{convert::TryFrom, fs};
+
+use smush_lut::Lut3dLinear;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let input = std::path::PathBuf::from(&args[1]);
+    let output = std::path::PathBuf::from(&args[2]);
 
     // TODO: Add better error handling.
+    // TODO: Add better argument parsing (clap?).
 
-    match input.extension().unwrap().to_str().unwrap() {
+    let lut_linear: Option<Lut3dLinear> = match input.extension().unwrap().to_str().unwrap() {
         "nutexb" => {
-            let mut output = input.clone();
-            output.set_extension("png");
-
-            let img = smush_lut::nutexb_to_image(&input).unwrap();
-            img.save(output).unwrap();
+            smush_lut::read_lut_from_nutexb(&input)
         }
         "cube" => {
             let contents = fs::read_to_string(&input).unwrap();
 
             // TODO: This can be try_from.
             let cube = smush_lut::CubeLut3d::from_text(&contents);
-            // TODO: modify the input path?
-            smush_lut::cube_to_nutexb(cube, &Path::new("color_grading_lut.nutexb")).unwrap();
+
+            // TODO: This can be try_from.
+            Some(cube.into())
         }
         _ => {
+            // Assume anything else is some form of supported image format.
             let img = image::open(&input).unwrap().into_rgba8();
-            // TODO: modify the input path?
-            smush_lut::img_to_nutexb(&img, &Path::new("color_grading_lut.nutexb")).unwrap();
+            Lut3dLinear::try_from(&img).ok()
+        }
+    };
+
+    let lut_linear = lut_linear.unwrap();
+
+    match output.extension().unwrap().to_str().unwrap() {
+        "nutexb" => {
+            smush_lut::linear_lut_to_nutexb(lut_linear, &output).unwrap();
+        }
+        "cube" => {
+            // TODO:
+        }
+        _ => {
+            // Assume anything else is some form of supported image format.
+            let img = image::RgbaImage::try_from(lut_linear).unwrap();
+            img.save(output).unwrap();
         }
     }
+
 }
