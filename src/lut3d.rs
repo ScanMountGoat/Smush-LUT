@@ -153,7 +153,7 @@ mod tests {
             0 1 1
             1 1 1
         "#};
-        let cube = CubeLut3d::from_text(text);
+        let cube = CubeLut3d::from_text(text).unwrap();
         let linear = Lut3dLinear::from(cube);
 
         assert_eq!(2, linear.size);

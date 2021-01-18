@@ -52,11 +52,8 @@ fn main() {
         "nutexb" => smush_lut::read_lut_from_nutexb(&input),
         "cube" => {
             let contents = fs::read_to_string(&input).unwrap();
+            let cube = smush_lut::CubeLut3d::from_text(&contents).unwrap();
 
-            // TODO: this should by try_from
-            let cube = smush_lut::CubeLut3d::from_text(&contents);
-
-            // TODO: this should by try_from
             Some(cube.into())
         }
         _ => {

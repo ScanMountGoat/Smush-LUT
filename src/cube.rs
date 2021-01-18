@@ -97,7 +97,7 @@ impl CubeLut3d {
         }
     }
 
-    pub fn from_text(text: &str) -> CubeLut3d {
+    pub fn from_text(text: &str) -> Result<CubeLut3d, &'static str> {
         // Skip lines with "#" to ignore comments.
         // Trim each line because the spec allows for leading/trailing whitespace.
         let lines: Vec<&str> = text
@@ -120,11 +120,19 @@ impl CubeLut3d {
             let mut parts = line.split_whitespace();
             match parts.next() {
                 Some("TITLE") => {
-                    // TODO: Don't ignore errors.
                     // The title is within double quotes, so just grab the middle part.
-                    title = line.split('"').skip(1).next().unwrap().into();
+                    title = line
+                        .split('"')
+                        .skip(1)
+                        .next()
+                        .ok_or("Missing value for TITLE.")?
+                        .into();
                 }
-                Some("LUT_3D_SIZE") => size = Some(parts.next().unwrap().parse().unwrap()),
+                Some("LUT_3D_SIZE") => {
+                    if let Some(size_text) = parts.next() {
+                        size = size_text.parse().ok()
+                    }
+                }
                 Some("DOMAIN_MIN") => {
                     let values: Vec<f32> = parts
                         .take(3)
@@ -149,6 +157,8 @@ impl CubeLut3d {
             }
         }
 
+        let size = size.ok_or("Failed to parse LUT_3D_SIZE.")?;
+
         let parse_rgb = |s: &str| {
             let mut parts = s.split_whitespace();
             let r: f32 = parts.next()?.parse().ok()?;
@@ -158,15 +168,20 @@ impl CubeLut3d {
         };
 
         // Parse "0 0 1\n1 0 0..." into a single vector.
-        let data_starting_line = data_starting_line.unwrap();
+        let data_starting_line = data_starting_line.ok_or("Failed to find data points.")?;
         let data: Vec<(f32, f32, f32)> = lines[data_starting_line..]
             .iter()
             .filter_map(|s| parse_rgb(s))
             .collect();
 
+        if data.len() != (size as usize).pow(3) {
+            return Err("Data point count does not agree with LUT_3D_SIZE.");
+        }
+
         // TODO: Make sure the size and the actual data length match.
         // TODO: Size must be greater than 2.
-        CubeLut3d::new(title, size.unwrap(), domain_min, domain_max, data)
+        let cube = CubeLut3d::new(title, size, domain_min, domain_max, data);
+        Ok(cube)
     }
 }
 
@@ -234,7 +249,7 @@ mod tests {
             0 1 1
             1 1 1
         "#};
-        let cube = CubeLut3d::from_text(text);
+        let cube = CubeLut3d::from_text(text).unwrap();
         assert_eq!(cube.title, "");
         assert_eq!(cube.size, 2);
         assert_eq!(cube.domain_min, (0f32, 0f32, 0f32));
@@ -252,6 +267,78 @@ mod tests {
                 (1f32, 1f32, 1f32)
             ]
         );
+    }
+
+    #[test]
+    fn create_from_text_missing_size() {
+        let text = "bad cube file";
+        let cube = CubeLut3d::from_text(text);
+        assert_eq!(cube, Err("Failed to parse LUT_3D_SIZE."));
+    }
+
+    #[test]
+    fn create_from_text_no_data() {
+        let text = indoc! {r#"
+            TITLE "no data"
+            LUT_3D_SIZE 2
+        "#};
+        let cube = CubeLut3d::from_text(text);
+        assert_eq!(cube, Err("Failed to find data points."));
+    }
+
+    #[test]
+    fn create_from_text_missing_size_value() {
+        let text = indoc! {r#"
+            # comment
+            LUT_3D_SIZE  
+            0 0 0
+            1 0 0
+            0 .75 0
+            1 .75 0
+            0 .25 1
+            1 .25 1
+            0 1 1
+            1 1 1
+        "#};
+        let cube = CubeLut3d::from_text(text);
+        assert_eq!(cube, Err("Failed to parse LUT_3D_SIZE."));
+    }
+
+    #[test]
+    fn create_from_text_invalid_rgb_triple() {
+        let text = indoc! {r#"
+            # comment
+            LUT_3D_SIZE 2 
+            0 0 0
+            1 0 0
+            0 .75 0
+            1 .75 0
+            0 .25 1
+            1 1
+            0 1 1
+            1
+        "#};
+        let cube = CubeLut3d::from_text(text);
+        assert_eq!(cube, Err("Data point count does not agree with LUT_3D_SIZE."));
+    }
+
+    #[test]
+    fn create_from_text_missing_title_value() {
+        let text = indoc! {r#"
+            # comment
+            LUT_3D_SIZE 2
+            TITLE  
+            0 0 0
+            1 0 0
+            0 .75 0
+            1 .75 0
+            0 .25 1
+            1 .25 1
+            0 1 1
+            1 1 1
+        "#};
+        let cube = CubeLut3d::from_text(text);
+        assert_eq!(cube, Err("Missing value for TITLE."));
     }
 
     #[test]
@@ -277,7 +364,7 @@ mod tests {
             0 1 1
             1 1 1
         "#};
-        let cube = CubeLut3d::from_text(text);
+        let cube = CubeLut3d::from_text(text).unwrap();
         assert_eq!(cube.title, "lut1");
         assert_eq!(cube.size, 2);
         assert_eq!(cube.domain_min, (-1f32, -1f32, -1f32));
@@ -311,7 +398,7 @@ mod tests {
             0 1 1
             1 1 1
         "#};
-        let cube = CubeLut3d::from_text(text);
+        let cube = CubeLut3d::from_text(text).unwrap();
         assert_eq!(cube.title, " a  b    c ");
         assert_eq!(cube.size, 2);
         assert_eq!(cube.domain_min, (0f32, 0f32, 0f32));
@@ -362,7 +449,7 @@ mod tests {
         cube.write(&mut c).unwrap();
 
         let text = get_string(&mut c).unwrap();
-        let new_cube = CubeLut3d::from_text(&text);
+        let new_cube = CubeLut3d::from_text(&text).unwrap();
 
         assert_eq!(cube, new_cube);
     }
