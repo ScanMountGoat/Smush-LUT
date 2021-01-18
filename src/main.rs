@@ -1,19 +1,55 @@
-use std::{convert::TryFrom, fs};
+use clap::{App, Arg};
+use std::{convert::TryFrom, fs, path::PathBuf};
 
 use smush_lut::Lut3dLinear;
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    let input = std::path::PathBuf::from(&args[1]);
-    let output = std::path::PathBuf::from(&args[2]);
+    let matches = App::new("smush_lut")
+        .version("0.1")
+        .author("SMG")
+        .about("Convert 3D color grading LUTs for Smash Ultimate")
+        .arg(
+            Arg::with_name("input")
+                .index(1)
+                .short("i")
+                .long("input")
+                .help("the input image, cube, or nutexb file")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("output")
+                .index(2)
+                .short("o")
+                .long("output")
+                .help("the output image, cube, or nutexb file")
+                .required(false)
+                .takes_value(true),
+        )
+        .get_matches();
 
-    // TODO: Add better error handling.
-    // TODO: Add better argument parsing (clap?).
+    let input: PathBuf = matches.value_of("input").unwrap().into();
 
-    let lut_linear: Option<Lut3dLinear> = match input.extension().unwrap().to_str().unwrap() {
-        "nutexb" => {
-            smush_lut::read_lut_from_nutexb(&input)
+    let input_extension = input
+        .extension()
+        .unwrap()
+        .to_str()
+        .expect("The input file must have an extension.");
+
+    // Use the default conversion if no output is specified. 
+    let output: PathBuf= match matches.value_of("output") {
+        Some(path) => path.into(),
+        None => {
+            match input_extension {
+                "nutexb" => input.with_extension("png").to_str().unwrap().into(),
+                _ => input.with_extension("nutexb").to_str().unwrap().into(),
+            }
         }
+    };
+
+    let parse = std::time::Instant::now();
+    let lut_linear: Option<Lut3dLinear> = match input.extension().unwrap().to_str().unwrap() {
+        "nutexb" => smush_lut::read_lut_from_nutexb(&input),
         "cube" => {
             let contents = fs::read_to_string(&input).unwrap();
 
@@ -31,7 +67,9 @@ fn main() {
     };
 
     let lut_linear = lut_linear.unwrap();
+    eprintln!("Parse Time: {:?}", parse.elapsed());
 
+    let export = std::time::Instant::now();
     match output.extension().unwrap().to_str().unwrap() {
         "nutexb" => {
             smush_lut::linear_lut_to_nutexb(lut_linear, &output).unwrap();
@@ -46,4 +84,5 @@ fn main() {
             img.save(output).unwrap();
         }
     }
+    eprintln!("Export Time: {:?}", export.elapsed());
 }
