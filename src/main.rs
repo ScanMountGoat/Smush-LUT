@@ -1,5 +1,6 @@
 use clap::{App, Arg};
-use std::{convert::TryFrom, fs, path::PathBuf};
+use fs::write;
+use std::{convert::TryFrom, fs::{self, File}, io::Write, path::PathBuf};
 
 use smush_lut::Lut3dLinear;
 
@@ -13,7 +14,7 @@ fn main() {
                 .index(1)
                 .short("i")
                 .long("input")
-                .help("the input image, cube, or nutexb file")
+                .help("the input image, .cube, or .nutexb file")
                 .required(true)
                 .takes_value(true),
         )
@@ -22,7 +23,7 @@ fn main() {
                 .index(2)
                 .short("o")
                 .long("output")
-                .help("the output image, cube, or nutexb file")
+                .help("the output image, .cube, .nutexb, or .bin file")
                 .required(false)
                 .takes_value(true),
         )
@@ -74,6 +75,11 @@ fn main() {
         "cube" => {
             // TODO: this should by try_from
             smush_lut::linear_lut_to_cube(lut_linear, &output).unwrap();
+        }
+        "bin" => {
+            // Dump the unswizzled binary.
+            let mut file = File::create(output).unwrap();
+            file.write(lut_linear.as_ref()).unwrap();
         }
         _ => {
             // Assume anything else is some form of supported image format.
