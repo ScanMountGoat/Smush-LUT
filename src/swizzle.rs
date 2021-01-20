@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn swizzle_primaries() {
         let data = crate::create_neutral_lut();
-        let mut swizzled = [0u8; crate::image_size(16, 16, 16, 4)];
+        let mut swizzled = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&data, &mut swizzled, false);
 
         // Check primary colors to test that the XYZ masks are correct.
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn swizzle_black_white() {
         let data = crate::create_neutral_lut();
-        let mut swizzled = [0u8; crate::image_size(16, 16, 16, 4)];
+        let mut swizzled = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&data, &mut swizzled, false);
 
         // Black swizzled address: 0 (0000 0000 0000 0000)
@@ -122,10 +122,10 @@ mod tests {
         // Make sure deswizzling and then swizzling again is 1:1.
         // This ensures textures will be saved correctly.
         let original = crate::create_neutral_lut();
-        let mut deswizzled = [0u8; crate::image_size(16, 16, 16, 4)];
+        let mut deswizzled = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&original, &mut deswizzled, true);
 
-        let mut reswizzled = [0u8; crate::image_size(16, 16, 16, 4)];
+        let mut reswizzled = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&deswizzled, &mut reswizzled, false);
 
         let matching = original

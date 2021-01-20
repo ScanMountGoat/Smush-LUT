@@ -54,10 +54,10 @@ pub fn read_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> Option<Lut3dLinear> {
 
     // Read the swizzled image data.
     let mut file = Cursor::new(fs::read(nutexb).ok()?);
-    let mut data = [0u8; image_size(16, 16, 16, 4)];
+    let mut data = vec![0u8; image_size(16, 16, 16, 4)];
     file.read_exact(&mut data).ok()?;
 
-    let swizzled = Lut3dSwizzled::new(16, data.to_vec());
+    let swizzled = Lut3dSwizzled::new(16, data);
     Some(swizzled.into())
 }
 
@@ -94,7 +94,7 @@ const fn image_size(width: usize, height: usize, depth: usize, bpp: usize) -> us
     width * height * depth * bpp
 }
 
-fn create_neutral_lut() -> [u8; image_size(16, 16, 16, 4)] {
+fn create_neutral_lut() -> Vec<u8> {
     // Create a non swizzled 16x16x16 RGB LUT.
     let gradient_values = [
         0u8, 15u8, 30u8, 46u8, 64u8, 82u8, 101u8, 121u8, 140u8, 158u8, 176u8, 193u8, 209u8, 224u8,
@@ -106,7 +106,7 @@ fn create_neutral_lut() -> [u8; image_size(16, 16, 16, 4)] {
     let height = 16;
     let depth = 16;
 
-    let mut result = [0u8; image_size(16, 16, 16, 4)];
+    let mut result = vec![0u8; image_size(16, 16, 16, 4)];
     for z in 0..depth {
         for y in 0..height {
             for x in 0..width {

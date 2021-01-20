@@ -235,7 +235,7 @@ mod tests {
     fn swizzled_to_linear() {
         // Test that the data is correctly deswizzled when converting.
         let data = crate::create_neutral_lut();
-        let mut swizzled_data = [0u8; crate::image_size(16, 16, 16, 4)];
+        let mut swizzled_data = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&data, &mut swizzled_data, false);
 
         let swizzled = Lut3dSwizzled {
