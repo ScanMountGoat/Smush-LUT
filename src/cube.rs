@@ -319,7 +319,10 @@ mod tests {
             1
         "#};
         let cube = CubeLut3d::from_text(text);
-        assert_eq!(cube, Err("Data point count does not agree with LUT_3D_SIZE."));
+        assert_eq!(
+            cube,
+            Err("Data point count does not agree with LUT_3D_SIZE.")
+        );
     }
 
     #[test]

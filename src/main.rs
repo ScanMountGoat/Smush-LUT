@@ -1,6 +1,10 @@
 use clap::{App, Arg};
-use fs::write;
-use std::{convert::TryFrom, fs::{self, File}, io::Write, path::PathBuf};
+use std::{
+    convert::TryFrom,
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+};
 
 use smush_lut::Lut3dLinear;
 
@@ -37,15 +41,13 @@ fn main() {
         .to_str()
         .expect("The input file must have an extension.");
 
-    // Use the default conversion if no output is specified. 
-    let output: PathBuf= match matches.value_of("output") {
+    // Use the default conversion if no output is specified.
+    let output: PathBuf = match matches.value_of("output") {
         Some(path) => path.into(),
-        None => {
-            match input_extension {
-                "nutexb" => input.with_extension("png").to_str().unwrap().into(),
-                _ => input.with_extension("nutexb").to_str().unwrap().into(),
-            }
-        }
+        None => match input_extension {
+            "nutexb" => input.with_extension("png").to_str().unwrap().into(),
+            _ => input.with_extension("nutexb").to_str().unwrap().into(),
+        },
     };
 
     let parse = std::time::Instant::now();

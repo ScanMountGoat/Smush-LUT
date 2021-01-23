@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn linear_to_rgba() {
-        let data = crate::create_neutral_lut().to_vec();
+        let data = crate::create_default_lut().to_vec();
         let linear = Lut3dLinear { size: 16u32, data };
 
         let img = RgbaImage::try_from(linear).unwrap();
@@ -178,13 +178,13 @@ mod tests {
         assert_eq!(16u32, img.height());
 
         // Make sure the pixel values were copied correctly.
-        let data = crate::create_neutral_lut().to_vec();
+        let data = crate::create_default_lut().to_vec();
         itertools::assert_equal(&data, img.as_flat_samples().samples.into_iter());
     }
 
     #[test]
     fn rgba_to_linear() {
-        let data = crate::create_neutral_lut().to_vec();
+        let data = crate::create_default_lut().to_vec();
         let img = RgbaImage::from_raw(256, 16, data).unwrap();
         let linear = Lut3dLinear::try_from(&img).unwrap();
 
@@ -192,14 +192,14 @@ mod tests {
         assert_eq!(crate::image_size(16, 16, 16, 4), linear.data.len());
 
         // Make sure the pixel values were copied correctly.
-        let data = crate::create_neutral_lut().to_vec();
+        let data = crate::create_default_lut().to_vec();
         itertools::assert_equal(&data, &linear.data);
     }
 
     #[test]
     fn rgba_to_linear_invalid_dimensions() {
         // The width should be height^2.
-        let data = crate::create_neutral_lut().to_vec();
+        let data = crate::create_default_lut().to_vec();
         let img = RgbaImage::from_raw(128, 32, data).unwrap();
         let linear = Lut3dLinear::try_from(&img);
 
@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn linear_to_swizzled() {
         // Test that the data is correctly swizzled when converting.
-        let data = crate::create_neutral_lut().to_vec();
+        let data = crate::create_default_lut().to_vec();
         let linear = Lut3dLinear { size: 16u32, data };
         let swizzled: Lut3dSwizzled = linear.into();
 
@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn swizzled_to_linear() {
         // Test that the data is correctly deswizzled when converting.
-        let data = crate::create_neutral_lut();
+        let data = crate::create_default_lut();
         let mut swizzled_data = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&data, &mut swizzled_data, false);
 

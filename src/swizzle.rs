@@ -44,6 +44,8 @@ pub fn swizzle(source: &[u8], destination: &mut [u8], deswizzle: bool) {
                     (&mut destination[src..src + bpp]).copy_from_slice(&source[dst..dst + bpp]);
                 }
 
+                // Use the following 2's complement identity:
+                // offset + !mask + 1 = offset - mask
                 offset_x = (offset_x - x_mask) & x_mask;
             }
             offset_y = (offset_y - y_mask) & y_mask;
@@ -58,7 +60,7 @@ mod tests {
 
     #[test]
     fn swizzle_primaries() {
-        let data = crate::create_neutral_lut();
+        let data = crate::create_default_lut();
         let mut swizzled = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&data, &mut swizzled, false);
 
@@ -78,7 +80,7 @@ mod tests {
 
     #[test]
     fn swizzle_first_row() {
-        let data = crate::create_neutral_lut();
+        let data = crate::create_default_lut();
         let mut swizzled = [0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&data, &mut swizzled, false);
 
@@ -106,7 +108,7 @@ mod tests {
 
     #[test]
     fn swizzle_black_white() {
-        let data = crate::create_neutral_lut();
+        let data = crate::create_default_lut();
         let mut swizzled = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&data, &mut swizzled, false);
 
@@ -121,7 +123,7 @@ mod tests {
     fn test_swizzle_deswizzle() {
         // Make sure deswizzling and then swizzling again is 1:1.
         // This ensures textures will be saved correctly.
-        let original = crate::create_neutral_lut();
+        let original = crate::create_default_lut();
         let mut deswizzled = vec![0u8; crate::image_size(16, 16, 16, 4)];
         swizzle(&original, &mut deswizzled, true);
 

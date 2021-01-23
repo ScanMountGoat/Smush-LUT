@@ -73,7 +73,7 @@ pub fn write_neutral_lut_to_img(img: &mut RgbaImage) {
         ]);
     }
 
-    let neutral_lut_linear = create_training_lut();
+    let neutral_lut_linear = create_default_lut();
 
     // TODO: Find a cleaner way to write this.
     let bpp = 4;
@@ -94,9 +94,9 @@ const fn image_size(width: usize, height: usize, depth: usize, bpp: usize) -> us
     width * height * depth * bpp
 }
 
-fn create_training_lut() -> Vec<u8> {
-    // Create a non swizzled 16x16x16 RGB LUT used as the default LUT.
-    // This applies a subtle contrast/saturation adjustment.
+/// Create a linear (not swizzled) 16x16x16 RGB LUT used as the default stage LUT.
+/// This applies a subtle contrast/saturation adjustment.
+pub fn create_default_lut() -> Vec<u8> {
     let gradient_values = [
         0u8, 15u8, 30u8, 46u8, 64u8, 82u8, 101u8, 121u8, 140u8, 158u8, 176u8, 193u8, 209u8, 224u8,
         240u8, 255u8,
@@ -122,7 +122,10 @@ fn create_training_lut() -> Vec<u8> {
     result
 }
 
-pub fn linear_lut_to_cube(lut_linear: Lut3dLinear, output: &std::path::PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+pub fn linear_lut_to_cube(
+    lut_linear: Lut3dLinear,
+    output: &std::path::PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     let cube = CubeLut3d::from(lut_linear);
     let mut file = File::create(output)?;
     cube.write(&mut file)?;
