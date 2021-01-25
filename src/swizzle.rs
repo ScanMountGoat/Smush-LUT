@@ -1,5 +1,3 @@
-// TODO: Add the swizzle code to a lib.
-
 // color_grading_lut.nutexb
 // Every 4096 bytes is a quadrant of the 3D RGB volume.
 // R [0,255], G [0,121], B [0,121]: 0 to 4096
@@ -7,6 +5,11 @@
 // R [0,255], G [140,255], B [0,121]: 8192 to 12288
 // R [0,255], G [140,255], B [140,255]: 12288 to 16384
 
+// TODO: Swizzling may fail.
+// TODO: Swizzle and deswizzle can be separate functions.
+
+/// Swizzles or deswizzles the data from `source` into `destination`.
+/// `source` and `destination` must have length 16384 (16 * 16 * 16 * 4bpp).
 pub fn swizzle(source: &[u8], destination: &mut [u8], deswizzle: bool) {
     // The bit masking trick to increment the offset is taken from here:
     // https://fgiesen.wordpress.com/2011/01/17/texture-tiling-and-swizzling/
@@ -26,8 +29,6 @@ pub fn swizzle(source: &[u8], destination: &mut [u8], deswizzle: bool) {
     let mut offset_y = 0i32;
     let mut offset_z = 0i32;
 
-    // TODO: There's probably an error condition where this doesn't work.
-    // TODO: Check for invalid offsets after swizzling.
     for z in 0..depth {
         for y in 0..height {
             for x in 0..width {

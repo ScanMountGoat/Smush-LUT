@@ -16,6 +16,7 @@ mod cube;
 mod lut3d;
 mod swizzle;
 
+// TODO: Add proper parsing/writing to support other dimensions.
 // The dimensions and format are constant, so just include the footer.
 static NUTEXB_FOOTER: &[u8] = include_bytes!("footer.bin");
 
@@ -48,46 +49,19 @@ pub fn linear_lut_to_nutexb<P: AsRef<Path>>(
 }
 
 /// Attempts to read the color grading LUT data from the given path.
-pub fn read_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> Option<Lut3dLinear> {
+/// The final LUT will not be valid if `nutexb` does contain a 16x16x16 RGBA 3D LUT texture.  
+/// The conversion will fail if `nutexb` does not contain at least 16384 bytes of data. 
+pub fn read_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> std::io::Result<Lut3dLinear> {
     // TODO: Also parse the footer.
     // TODO: It may be better to add this functionality to the nutexb library once it's more finalized.
 
     // Read the swizzled image data.
-    let mut file = Cursor::new(fs::read(nutexb).ok()?);
+    let mut file = Cursor::new(fs::read(nutexb)?);
     let mut data = vec![0u8; image_size(16, 16, 16, 4)];
-    file.read_exact(&mut data).ok()?;
+    file.read_exact(&mut data)?;
 
     let swizzled = Lut3dSwizzled::new(16, data);
-    Some(swizzled.into())
-}
-
-pub fn write_neutral_lut_to_img(img: &mut RgbaImage) {
-    // Undo the postprocessing to ensure the gradient steps refer to the proper colors.
-    let darken = |u: u8| (u as f32 / 1.4f32) as u8;
-    for pixel in img.pixels_mut() {
-        *pixel = image::Rgba([
-            darken(pixel[0]),
-            darken(pixel[1]),
-            darken(pixel[2]),
-            pixel[3],
-        ]);
-    }
-
-    let neutral_lut_linear = create_default_lut();
-
-    // TODO: Find a cleaner way to write this.
-    let bpp = 4;
-    for z in 0..16 {
-        for y in 0..16 {
-            for x in 0..16 {
-                let offset = ((z * 16 * 16) + (y * 16) + x) * bpp;
-                if let [r, g, b, a] = &neutral_lut_linear[offset..offset + 4] {
-                    let pixel = image::Rgba([*r, *g, *b, *a]);
-                    img.put_pixel((x + (z * 16)) as u32, y as u32, pixel);
-                }
-            }
-        }
-    }
+    Ok(swizzled.into())
 }
 
 const fn image_size(width: usize, height: usize, depth: usize, bpp: usize) -> usize {
@@ -122,6 +96,7 @@ pub fn create_default_lut() -> Vec<u8> {
     result
 }
 
+/// Converts the data in `lut_linear` to the .cube format and writes it to `output`.
 pub fn linear_lut_to_cube(
     lut_linear: Lut3dLinear,
     output: &std::path::PathBuf,

@@ -52,7 +52,7 @@ fn main() {
 
     let parse = std::time::Instant::now();
     let lut_linear: Option<Lut3dLinear> = match input.extension().unwrap().to_str().unwrap() {
-        "nutexb" => smush_lut::read_lut_from_nutexb(&input),
+        "nutexb" => smush_lut::read_lut_from_nutexb(&input).ok(),
         "cube" => {
             let contents = fs::read_to_string(&input).unwrap();
             let cube = smush_lut::CubeLut3d::from_text(&contents).unwrap();
