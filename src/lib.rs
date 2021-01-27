@@ -50,7 +50,7 @@ pub fn linear_lut_to_nutexb<P: AsRef<Path>>(
 
 /// Attempts to read the color grading LUT data from the given path.
 /// The final LUT will not be valid if `nutexb` does contain a 16x16x16 RGBA 3D LUT texture.  
-/// The conversion will fail if `nutexb` does not contain at least 16384 bytes of data. 
+/// The conversion will fail if `nutexb` does not contain at least 16384 bytes of data.
 pub fn read_lut_from_nutexb<P: AsRef<Path>>(nutexb: P) -> std::io::Result<Lut3dLinear> {
     // TODO: Also parse the footer.
     // TODO: It may be better to add this functionality to the nutexb library once it's more finalized.

@@ -50,6 +50,11 @@ fn main() {
         },
     };
 
+    let lut_linear = parse_input(&input).unwrap();
+    save_output(lut_linear, &output);
+}
+
+fn parse_input(input: &PathBuf) -> Option<Lut3dLinear> {
     let parse = std::time::Instant::now();
     let lut_linear: Option<Lut3dLinear> = match input.extension().unwrap().to_str().unwrap() {
         "nutexb" => smush_lut::read_lut_from_nutexb(&input).ok(),
@@ -66,16 +71,18 @@ fn main() {
         }
     };
 
-    let lut_linear = lut_linear.unwrap();
     eprintln!("Parse Time: {:?}", parse.elapsed());
 
+    lut_linear
+}
+
+fn save_output(lut_linear: Lut3dLinear, output: &PathBuf) {
     let export = std::time::Instant::now();
     match output.extension().unwrap().to_str().unwrap() {
         "nutexb" => {
             smush_lut::linear_lut_to_nutexb(lut_linear, &output).unwrap();
         }
         "cube" => {
-            // TODO: this should by try_from
             smush_lut::linear_lut_to_cube(lut_linear, &output).unwrap();
         }
         "bin" => {
