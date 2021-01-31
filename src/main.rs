@@ -51,7 +51,7 @@ fn main() {
     };
 
     let lut_linear = parse_input(&input).unwrap();
-    save_output(lut_linear, &output);
+    save_output(&lut_linear, &output);
 }
 
 fn parse_input(input: &PathBuf) -> Option<Lut3dLinear> {
@@ -76,7 +76,7 @@ fn parse_input(input: &PathBuf) -> Option<Lut3dLinear> {
     lut_linear
 }
 
-fn save_output(lut_linear: Lut3dLinear, output: &PathBuf) {
+fn save_output(lut_linear: &Lut3dLinear, output: &PathBuf) {
     let export = std::time::Instant::now();
     match output.extension().unwrap().to_str().unwrap() {
         "nutexb" => {

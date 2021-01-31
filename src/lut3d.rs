@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use image::RgbaImage;
 
@@ -66,7 +66,16 @@ impl From<CubeLut3d> for Lut3dLinear {
     }
 }
 
-// TODO: Implement for non reference as well?
+impl TryFrom<RgbaImage> for Lut3dLinear { 
+    type Error = &'static str;
+
+    /// Tries to convert an image with slices in z arranged horizontally along the top of the image.
+    /// For example, a 16x16x16 LUT image must have dimensions at least 256x16 pixels.
+    fn try_from(value: RgbaImage) -> Result<Self, Self::Error> {
+        (&value).try_into()
+    }
+}
+
 impl TryFrom<&RgbaImage> for Lut3dLinear {
     type Error = &'static str;
 
@@ -91,6 +100,15 @@ impl TryFrom<Lut3dLinear> for RgbaImage {
 
     fn try_from(value: Lut3dLinear) -> Result<Self, Self::Error> {
         RgbaImage::from_raw(value.size * value.size, value.size, value.data)
+            .ok_or("Error creating RgbaImage.")
+    }
+}
+
+impl TryFrom<&Lut3dLinear> for RgbaImage {
+    type Error = &'static str;
+
+    fn try_from(value: &Lut3dLinear) -> Result<Self, Self::Error> {
+        RgbaImage::from_raw(value.size * value.size, value.size, value.data.clone())
             .ok_or("Error creating RgbaImage.")
     }
 }
@@ -120,15 +138,22 @@ impl AsRef<[u8]> for Lut3dSwizzled {
     }
 }
 
-impl From<Lut3dLinear> for Lut3dSwizzled {
+impl From<&Lut3dLinear> for Lut3dSwizzled {
     /// Swizzle the data in value to create a `Lut3dLinear` of identical size.
-    fn from(value: Lut3dLinear) -> Self {
+    fn from(value: &Lut3dLinear) -> Self {
         let mut data = vec![0u8; value.data.len()];
         swizzle(&value.data, &mut data, false);
         Lut3dSwizzled {
             size: value.size,
             data,
         }
+    }
+}
+
+impl From<Lut3dLinear> for Lut3dSwizzled {
+    /// Swizzle the data in value to create a `Lut3dLinear` of identical size.
+    fn from(value: Lut3dLinear) -> Self {
+        (&value).into()
     }
 }
 
@@ -183,10 +208,39 @@ mod tests {
     }
 
     #[test]
-    fn rgba_to_linear() {
+    fn linear_ref_to_rgba() {
+        let data = crate::create_default_lut().to_vec();
+        let linear = Lut3dLinear { size: 16u32, data };
+
+        let img = RgbaImage::try_from(&linear).unwrap();
+
+        assert_eq!(256u32, img.width());
+        assert_eq!(16u32, img.height());
+
+        // Make sure the pixel values were copied correctly.
+        let data = crate::create_default_lut().to_vec();
+        itertools::assert_equal(&data, img.as_flat_samples().samples.into_iter());
+    }
+
+    #[test]
+    fn rgba_ref_to_linear() {
         let data = crate::create_default_lut().to_vec();
         let img = RgbaImage::from_raw(256, 16, data).unwrap();
         let linear = Lut3dLinear::try_from(&img).unwrap();
+
+        assert_eq!(16u32, linear.size);
+        assert_eq!(crate::image_size(16, 16, 16, 4), linear.data.len());
+
+        // Make sure the pixel values were copied correctly.
+        let data = crate::create_default_lut().to_vec();
+        itertools::assert_equal(&data, &linear.data);
+    }
+
+    #[test]
+    fn rgba_to_linear() {
+        let data = crate::create_default_lut().to_vec();
+        let img = RgbaImage::from_raw(256, 16, data).unwrap();
+        let linear = Lut3dLinear::try_from(img).unwrap();
 
         assert_eq!(16u32, linear.size);
         assert_eq!(crate::image_size(16, 16, 16, 4), linear.data.len());
@@ -207,6 +261,28 @@ mod tests {
             linear,
             Err("Invalid dimensions. Expected width to equal height * height.")
         );
+    }
+
+    #[test]
+    fn linear_ref_to_swizzled() {
+        // Test that the data is correctly swizzled when converting.
+        let data = crate::create_default_lut().to_vec();
+        let linear = Lut3dLinear { size: 16u32, data };
+        let swizzled: Lut3dSwizzled = (&linear).into();
+
+        assert_eq!(16u32, swizzled.size);
+
+        // Black swizzled address: 0 (0000 0000 0000 0000)
+        assert_eq!(&[0u8, 0u8, 0u8, 255u8], &swizzled.data[0..4]);
+
+        // Red swizzled address: 300 (0000 0001 0010 1100)
+        assert_eq!(&[255u8, 0u8, 0u8, 255u8], &swizzled.data[300..304]);
+
+        // Green swizzled address: 8400 (0010 0000 1101 0000)
+        assert_eq!(&[0u8, 255u8, 0u8, 255u8], &swizzled.data[8400..8404]);
+
+        // Blue swizzled address: 7680 (0001 1110 0000 0000)
+        assert_eq!(&[0u8, 0u8, 255u8, 255u8], &swizzled.data[7680..7684]);
     }
 
     #[test]

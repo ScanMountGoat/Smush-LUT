@@ -36,7 +36,7 @@ pub fn img_to_nutexb<P: AsRef<Path>>(
 
 /// Convert a `Lut3dLinear` lut to Nutexb.
 pub fn linear_lut_to_nutexb<P: AsRef<Path>>(
-    lut: Lut3dLinear,
+    lut: &Lut3dLinear,
     path: &P,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // TODO: This only works for size 16.
@@ -98,7 +98,7 @@ pub fn create_default_lut() -> Vec<u8> {
 
 /// Converts the data in `lut_linear` to the .cube format and writes it to `output`.
 pub fn linear_lut_to_cube(
-    lut_linear: Lut3dLinear,
+    lut_linear: &Lut3dLinear,
     output: &std::path::PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let cube = CubeLut3d::from(lut_linear);

@@ -16,6 +16,12 @@ pub struct CubeLut3d {
 
 impl From<Lut3dLinear> for CubeLut3d {
     fn from(value: Lut3dLinear) -> Self {
+        (&value).into()
+    }
+}
+
+impl From<&Lut3dLinear> for CubeLut3d {
+    fn from(value: &Lut3dLinear) -> Self {
         // Map RGBA u8 values to (r,g,b) f32 values in the range 0.0 to 1.0.
         let data = value
             .as_ref()
@@ -213,6 +219,38 @@ mod tests {
                 .collect(),
         );
         let cube: CubeLut3d = linear.into();
+        assert_eq!(cube.title, "");
+        assert_eq!(cube.size, 2);
+        assert_eq!(cube.domain_min, (0f32, 0f32, 0f32));
+        assert_eq!(cube.domain_max, (1f32, 1f32, 1f32));
+        assert_eq!(
+            cube.data,
+            vec![
+                (0.0f32, 0.2f32, 1.0f32),
+                (0.0f32, 0.2f32, 1.0f32),
+                (0.0f32, 0.2f32, 1.0f32),
+                (0.0f32, 0.2f32, 1.0f32),
+                (0.0f32, 0.2f32, 1.0f32),
+                (0.0f32, 0.2f32, 1.0f32),
+                (0.0f32, 0.2f32, 1.0f32),
+                (0.0f32, 0.2f32, 1.0f32),
+            ]
+        );
+    }
+
+    #[test]
+    fn create_from_linear_ref() {
+        // Test u8 to f32 conversion.
+        let linear = Lut3dLinear::new(
+            2u32,
+            [0u8, 51u8, 255u8, 255u8]
+                .iter()
+                .cycle()
+                .take(32)
+                .map(|u| *u)
+                .collect(),
+        );
+        let cube: CubeLut3d = (&linear).into();
         assert_eq!(cube.title, "");
         assert_eq!(cube.size, 2);
         assert_eq!(cube.domain_min, (0f32, 0f32, 0f32));
