@@ -64,22 +64,22 @@ impl CubeLut3d {
 
     pub fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut file = BufWriter::new(writer);
-        file.write(b"#Created by: smush_lut.exe\n")?;
-        write!(&mut file, "TITLE \"{}\"\n", self.title)?;
-        file.write(b"\n")?;
+        file.write_all(b"#Created by: smush_lut.exe\n")?;
+        writeln!(&mut file, "TITLE \"{}\"", self.title)?;
+        file.write_all(b"\n")?;
 
-        file.write(b"#LUT Size\n")?;
-        write!(&mut file, "LUT_3D_SIZE {}\n", self.size)?;
-        file.write(b"\n")?;
+        file.write_all(b"#LUT Size\n")?;
+        writeln!(&mut file, "LUT_3D_SIZE {}", self.size)?;
+        file.write_all(b"\n")?;
 
-        file.write(b"#data domain\n")?;
-        file.write(b"DOMAIN_MIN 0.0 0.0 0.0\n")?;
-        file.write(b"DOMAIN_MAX 1.0 1.0 1.0\n")?;
-        file.write(b"\n")?;
+        file.write_all(b"#data domain\n")?;
+        file.write_all(b"DOMAIN_MIN 0.0 0.0 0.0\n")?;
+        file.write_all(b"DOMAIN_MAX 1.0 1.0 1.0\n")?;
+        file.write_all(b"\n")?;
 
-        file.write(b"#LUT data points\n")?;
+        file.write_all(b"#LUT data points\n")?;
         for (r, g, b) in &self.data {
-            write!(&mut file, "{} {} {}\n", r, g, b)?
+            writeln!(&mut file, "{} {} {}", r, g, b)?
         }
 
         file.flush()?;
@@ -109,7 +109,7 @@ impl CubeLut3d {
         let lines: Vec<&str> = text
             .lines()
             .map(|s| s.trim())
-            .filter(|s| !s.starts_with("#") && !s.is_empty())
+            .filter(|s| !s.starts_with('#') && !s.is_empty())
             .collect();
 
         let mut size: Option<u8> = Option::None;
@@ -129,8 +129,7 @@ impl CubeLut3d {
                     // The title is within double quotes, so just grab the middle part.
                     title = line
                         .split('"')
-                        .skip(1)
-                        .next()
+                        .nth(1)
                         .ok_or("Missing value for TITLE.")?
                         .into();
                 }

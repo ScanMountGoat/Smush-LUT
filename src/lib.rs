@@ -29,8 +29,8 @@ pub fn img_to_nutexb<P: AsRef<Path>>(
     let swizzled: Lut3dSwizzled = linear.into();
 
     let mut buffer = File::create(path)?;
-    buffer.write(swizzled.as_ref())?;
-    buffer.write(NUTEXB_FOOTER)?;
+    buffer.write_all(swizzled.as_ref())?;
+    buffer.write_all(NUTEXB_FOOTER)?;
     Ok(())
 }
 
@@ -43,8 +43,8 @@ pub fn linear_lut_to_nutexb<P: AsRef<Path>>(
     let swizzled: Lut3dSwizzled = lut.into();
 
     let mut buffer = File::create(path)?;
-    buffer.write(swizzled.as_ref())?;
-    buffer.write(NUTEXB_FOOTER)?;
+    buffer.write_all(swizzled.as_ref())?;
+    buffer.write_all(NUTEXB_FOOTER)?;
     Ok(())
 }
 
@@ -99,7 +99,7 @@ pub fn create_default_lut() -> Vec<u8> {
 /// Converts the data in `lut_linear` to the .cube format and writes it to `output`.
 pub fn linear_lut_to_cube(
     lut_linear: &Lut3dLinear,
-    output: &std::path::PathBuf,
+    output: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let cube = CubeLut3d::from(lut_linear);
     let mut file = File::create(output)?;

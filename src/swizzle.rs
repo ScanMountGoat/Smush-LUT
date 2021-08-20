@@ -18,7 +18,7 @@ pub fn swizzle(source: &[u8], destination: &mut [u8], deswizzle: bool) {
     // 0, 4, 8, 12, ..., 32, 36, 40, 44, ..., 256, 260, 264, 268, ..., 288, 292, 296, 300
     let x_mask = 0b0000_0001_0010_1100i32;
     let y_mask = 0b0010_0000_1101_0000i32;
-    let z_mask = 0b0001_1110__0000_0000i32;
+    let z_mask = 0b0001_1110_0000_0000i32;
 
     let bpp = 4;
     let width = 16;

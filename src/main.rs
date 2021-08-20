@@ -3,7 +3,7 @@ use std::{
     convert::TryFrom,
     fs::{self, File},
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use smush_lut::Lut3dLinear;
@@ -54,7 +54,7 @@ fn main() {
     save_output(&lut_linear, &output);
 }
 
-fn parse_input(input: &PathBuf) -> Option<Lut3dLinear> {
+fn parse_input(input: &Path) -> Option<Lut3dLinear> {
     let parse = std::time::Instant::now();
     let lut_linear: Option<Lut3dLinear> = match input.extension().unwrap().to_str().unwrap() {
         "nutexb" => smush_lut::read_lut_from_nutexb(&input).ok(),
@@ -76,7 +76,7 @@ fn parse_input(input: &PathBuf) -> Option<Lut3dLinear> {
     lut_linear
 }
 
-fn save_output(lut_linear: &Lut3dLinear, output: &PathBuf) {
+fn save_output(lut_linear: &Lut3dLinear, output: &Path) {
     let export = std::time::Instant::now();
     match output.extension().unwrap().to_str().unwrap() {
         "nutexb" => {
@@ -88,7 +88,7 @@ fn save_output(lut_linear: &Lut3dLinear, output: &PathBuf) {
         "bin" => {
             // Dump the unswizzled binary.
             let mut file = File::create(output).unwrap();
-            file.write(lut_linear.as_ref()).unwrap();
+            file.write_all(lut_linear.as_ref()).unwrap();
         }
         _ => {
             // Assume anything else is some form of supported image format.

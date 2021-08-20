@@ -66,7 +66,7 @@ impl From<CubeLut3d> for Lut3dLinear {
     }
 }
 
-impl TryFrom<RgbaImage> for Lut3dLinear { 
+impl TryFrom<RgbaImage> for Lut3dLinear {
     type Error = &'static str;
 
     /// Tries to convert an image with slices in z arranged horizontally along the top of the image.
