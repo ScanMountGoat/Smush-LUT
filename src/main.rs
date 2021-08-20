@@ -10,7 +10,7 @@ use smush_lut::Lut3dLinear;
 
 fn main() {
     let matches = App::new("smush_lut")
-        .version("0.1")
+        .version("0.2")
         .author("SMG")
         .about("Convert 3D color grading LUTs for Smash Ultimate")
         .arg(

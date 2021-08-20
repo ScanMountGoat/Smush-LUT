@@ -1,6 +1,6 @@
 [package]
 name = "smush_lut"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["SMG <>"]
 edition = "2018"
 
@@ -9,11 +9,3 @@ image = "0.23"
 indoc = "1.0"
 itertools = "0.10.0"
 clap = "2.33"
-
-[lib]
-name = "smush_lut"
-path = "src/lib.rs"
-
-[[bin]]
-name = "smush_lut"
-path = "src/main.rs"
