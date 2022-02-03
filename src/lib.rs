@@ -14,7 +14,6 @@ pub use lut3d::{Lut3dLinear, Lut3dSwizzled};
 
 mod cube;
 mod lut3d;
-mod swizzle;
 
 // TODO: Add proper parsing/writing to support other dimensions.
 // The dimensions and format are constant, so just include the footer.

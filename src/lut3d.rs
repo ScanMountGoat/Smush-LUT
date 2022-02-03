@@ -1,8 +1,9 @@
 use std::convert::{TryFrom, TryInto};
 
 use image::RgbaImage;
+use tegra_swizzle::surface::{deswizzle_surface, swizzle_surface, BlockDim};
 
-use crate::{swizzle::swizzle, CubeLut3d};
+use crate::CubeLut3d;
 
 #[cfg(test)]
 use indoc::indoc;
@@ -35,8 +36,18 @@ impl AsRef<[u8]> for Lut3dLinear {
 impl From<Lut3dSwizzled> for Lut3dLinear {
     /// Deswizzle the data in value to create a `Lut3dLinear` of identical size.
     fn from(value: Lut3dSwizzled) -> Self {
-        let mut data = vec![0u8; value.data.len()];
-        swizzle(&value.data, &mut data, true);
+        let data = deswizzle_surface(
+            16,
+            16,
+            16,
+            &value.data,
+            BlockDim::uncompressed(),
+            None,
+            4,
+            1,
+            1,
+        )
+        .unwrap();
         Lut3dLinear {
             size: value.size,
             data,
@@ -142,7 +153,18 @@ impl From<&Lut3dLinear> for Lut3dSwizzled {
     /// Swizzle the data in value to create a `Lut3dLinear` of identical size.
     fn from(value: &Lut3dLinear) -> Self {
         let mut data = vec![0u8; value.data.len()];
-        swizzle(&value.data, &mut data, false);
+        let data = swizzle_surface(
+            16,
+            16,
+            16,
+            &value.data,
+            BlockDim::uncompressed(),
+            None,
+            4,
+            1,
+            1,
+        )
+        .unwrap();
         Lut3dSwizzled {
             size: value.size,
             data,
@@ -311,8 +333,8 @@ mod tests {
     fn swizzled_to_linear() {
         // Test that the data is correctly deswizzled when converting.
         let data = crate::create_default_lut();
-        let mut swizzled_data = vec![0u8; crate::image_size(16, 16, 16, 4)];
-        swizzle(&data, &mut swizzled_data, false);
+        let swizzled_data =
+            swizzle_surface(16, 16, 16, &data, BlockDim::uncompressed(), None, 4, 1, 1).unwrap();
 
         let swizzled = Lut3dSwizzled {
             size: 16u32,
