@@ -1,5 +1,5 @@
 # Smush-LUT
-<img src="https://scanmountgoat.github.io/Smush-Material-Research/assets/images/post_processing/neutral_lut.png" height="auto" width="100%">  
+<img src="https://raw.githubusercontent.com/ScanMountGoat/Smush-Material-Research/master/docs/content/post_processing/postprocessing/neutral_lut.png" height="auto" width="100%">  
 
 Create color grading 3D LUTs for Smash Ultimate. Learn more about how these textures work and the effects that can be achieved in the 
 [post processing page](https://scanmountgoat.github.io/Smush-Material-Research/post_processing) of the Smash Ultimate material website. A windows executable is available in 
