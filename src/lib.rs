@@ -9,6 +9,7 @@ pub use self::cube::CubeLut3d;
 pub use lut3d::Lut3dLinear;
 
 mod cube;
+mod interp;
 mod lut3d;
 
 /// Convert an image with dimensions ((size * size), size) to a Nutexb LUT.
