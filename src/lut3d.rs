@@ -1,6 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use image::RgbaImage;
+use nutexb::{ToNutexb, NutexbFormat};
 use tegra_swizzle::surface::{deswizzle_surface, swizzle_surface, BlockDim};
 
 use crate::CubeLut3d;
@@ -121,6 +122,36 @@ impl TryFrom<&Lut3dLinear> for RgbaImage {
     fn try_from(value: &Lut3dLinear) -> Result<Self, Self::Error> {
         RgbaImage::from_raw(value.size * value.size, value.size, value.data.clone())
             .ok_or("Error creating RgbaImage.")
+    }
+}
+
+impl ToNutexb for Lut3dLinear {
+    fn width(&self) -> u32 {
+        self.size
+    }
+
+    fn height(&self) -> u32 {
+        self.size
+    }
+
+    fn depth(&self) -> u32 {
+        self.size
+    }
+
+    fn image_data(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        Ok(self.data.clone())
+    }
+
+    fn mipmap_count(&self) -> u32 {
+        1
+    }
+
+    fn layer_count(&self) -> u32 {
+        1
+    }
+
+    fn image_format(&self) -> Result<nutexb::NutexbFormat, Box<dyn std::error::Error>> {
+        Ok(NutexbFormat::R8G8B8A8Unorm)
     }
 }
 
