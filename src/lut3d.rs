@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use image::RgbaImage;
 use nutexb::{NutexbFormat, ToNutexb};
 
-use crate::{create_default_lut_f32, CubeLut3d};
+use crate::{create_default_lut_f32, interp::trilinear, CubeLut3d};
 
 /// A 3D RGBA LUT with unswizzled data in row major order.
 /// Values are written to data using a nested ZYX loops with X being the innermost loop.
@@ -16,6 +16,13 @@ pub struct Lut3dLinear {
 }
 
 impl Lut3dLinear {
+    pub fn empty_rgba(size: usize) -> Self {
+        Self {
+            size,
+            data: vec![0.0f32; size * size * size * 4],
+        }
+    }
+
     pub fn from_rgba(size: usize, data: Vec<u8>) -> Self {
         Self {
             size,
@@ -33,6 +40,54 @@ impl Lut3dLinear {
             data: create_default_lut_f32(),
         }
     }
+
+    pub fn set_rgba(&mut self, x: usize, y: usize, z: usize, rgba: [f32; 4]) {
+        let i = index3d(x, y, z, self.size, self.size);
+        self.data[i * 4..i * 4 + 4].copy_from_slice(&rgba);
+    }
+
+    pub fn sample_rgba_trilinear(&self, x: f32, y: f32, z: f32) -> [f32; 4] {
+        let mut result = [0.0; 4];
+
+        // TODO: Does this work for an empty lut?
+        for c in 0..4 {
+            let x0 = ((x * (self.size - 1) as f32) as usize).clamp(0, self.size - 1);
+            let x1 = ((x * (self.size - 1) as f32).ceil() as usize).clamp(0, self.size - 1);
+
+            let y0 = ((y * (self.size - 1) as f32) as usize).clamp(0, self.size - 1);
+            let y1 = ((y * (self.size - 1) as f32).ceil() as usize).clamp(0, self.size - 1);
+
+            let z0 = ((z * (self.size - 1) as f32) as usize).clamp(0, self.size - 1);
+            let z1 = ((z * (self.size - 1) as f32).ceil() as usize).clamp(0, self.size - 1);
+
+            let f000 = self.data[index3d(x0, y0, z0, self.size, self.size) * 4 + c];
+            let f001 = self.data[index3d(x1, y0, z0, self.size, self.size) * 4 + c];
+            let f010 = self.data[index3d(x0, y1, z0, self.size, self.size) * 4 + c];
+            let f011 = self.data[index3d(x1, y1, z0, self.size, self.size) * 4 + c];
+            let f100 = self.data[index3d(x0, y0, z1, self.size, self.size) * 4 + c];
+            let f101 = self.data[index3d(x1, y0, z1, self.size, self.size) * 4 + c];
+            let f110 = self.data[index3d(x0, y1, z1, self.size, self.size) * 4 + c];
+            let f111 = self.data[index3d(x1, y1, z1, self.size, self.size) * 4 + c];
+
+            // TODO: Does this correctly clamp to edge?
+            result[c] = trilinear(
+                (x, y, z),
+                0.0,
+                1.0,
+                0.0,
+                1.0,
+                0.0,
+                1.0,
+                [f000, f001, f010, f011, f100, f101, f110, f111],
+            );
+        }
+
+        result
+    }
+}
+
+fn index3d(x: usize, y: usize, z: usize, width: usize, height: usize) -> usize {
+    z * width * height + y * width + x
 }
 
 impl From<CubeLut3d> for Lut3dLinear {

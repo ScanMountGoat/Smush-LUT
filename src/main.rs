@@ -91,6 +91,7 @@ fn save_output(lut_linear: &Lut3dLinear, output: &Path) {
             file.write_all(&lut_linear.to_rgba()).unwrap();
         }
         _ => {
+            // TODO: Make correction an option for all outputs?
             // TODO: Make correction optional?
             // TODO: Make the stage lut an optional parameter?
             let lut_stage = Lut3dLinear::default_stage();
