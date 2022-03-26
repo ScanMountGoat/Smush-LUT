@@ -3,15 +3,14 @@ use std::io::{BufWriter, Write};
 use crate::Lut3dLinear;
 #[cfg(test)]
 use indoc::indoc;
-use itertools::Itertools;
 
 #[derive(Debug, PartialEq)]
 pub struct CubeLut3d {
-    title: String,
-    size: u8,
-    domain_min: (f32, f32, f32),
-    domain_max: (f32, f32, f32),
-    data: Vec<(f32, f32, f32)>,
+    pub title: String,
+    pub size: u8,
+    pub domain_min: (f32, f32, f32),
+    pub domain_max: (f32, f32, f32),
+    pub data: Vec<(f32, f32, f32)>,
 }
 
 impl From<Lut3dLinear> for CubeLut3d {
@@ -21,19 +20,12 @@ impl From<Lut3dLinear> for CubeLut3d {
 }
 
 impl From<&Lut3dLinear> for CubeLut3d {
-    fn from(value: &Lut3dLinear) -> Self {
-        // Map RGBA u8 values to (r,g,b) f32 values in the range 0.0 to 1.0.
-        let data = value
-            .as_ref()
-            .iter()
-            .map(|u| *u as f32 / 255f32)
-            .tuples::<(f32, f32, f32, f32)>()
-            .map(|t| (t.0, t.1, t.2))
-            .collect();
+    fn from(lut: &Lut3dLinear) -> Self {
+        let data = lut.data.chunks(4).map(|c| (c[0], c[1], c[2])).collect();
 
         CubeLut3d::new(
             "".into(),
-            value.size() as u8,
+            lut.size as u8,
             (0f32, 0f32, 0f32),
             (1f32, 1f32, 1f32),
             data,
@@ -42,26 +34,6 @@ impl From<&Lut3dLinear> for CubeLut3d {
 }
 
 impl CubeLut3d {
-    pub fn size(&self) -> u8 {
-        self.size
-    }
-
-    pub fn title(&self) -> &str {
-        &self.title
-    }
-
-    pub fn domain_min(&self) -> (f32, f32, f32) {
-        self.domain_min
-    }
-
-    pub fn domain_max(&self) -> (f32, f32, f32) {
-        self.domain_max
-    }
-
-    pub fn data(&self) -> &[(f32, f32, f32)] {
-        &self.data
-    }
-
     pub fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut file = BufWriter::new(writer);
         file.write_all(b"#Created by: smush_lut.exe\n")?;
@@ -208,13 +180,13 @@ mod tests {
     #[test]
     fn create_from_linear() {
         // Test u8 to f32 conversion.
-        let linear = Lut3dLinear::new(
-            2u32,
+        let linear = Lut3dLinear::from_rgba(
+            2,
             [0u8, 51u8, 255u8, 255u8]
                 .iter()
                 .cycle()
                 .take(32)
-                .map(|u| *u)
+                .copied()
                 .collect(),
         );
         let cube: CubeLut3d = linear.into();
@@ -240,13 +212,13 @@ mod tests {
     #[test]
     fn create_from_linear_ref() {
         // Test u8 to f32 conversion.
-        let linear = Lut3dLinear::new(
-            2u32,
+        let linear = Lut3dLinear::from_rgba(
+            2,
             [0u8, 51u8, 255u8, 255u8]
                 .iter()
                 .cycle()
                 .take(32)
-                .map(|u| *u)
+                .copied()
                 .collect(),
         );
         let cube: CubeLut3d = (&linear).into();

@@ -5,12 +5,15 @@ use std::error::Error;
 use std::fs::File;
 use std::path::Path;
 
-pub use self::cube::CubeLut3d;
+pub use cube::CubeLut3d;
 pub use lut3d::Lut3dLinear;
 
+mod color_correction;
 mod cube;
 mod interp;
 mod lut3d;
+
+pub use color_correction::correct_lut;
 
 /// Convert an image with dimensions ((size * size), size) to a Nutexb LUT.
 pub fn write_img_to_nutexb<P: AsRef<Path>>(
@@ -24,7 +27,7 @@ pub fn write_img_to_nutexb<P: AsRef<Path>>(
 /// Convert a `Lut3dLinear` lut to Nutexb.
 pub fn write_lut_to_nutexb<P: AsRef<Path>>(
     lut: &Lut3dLinear,
-    path: &P,
+    path: P,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // TODO: This only works for size 16?
     NutexbFile::create(lut, "color_grading_lut")?.write_to_file(path)
@@ -36,13 +39,13 @@ pub fn write_lut_to_nutexb<P: AsRef<Path>>(
 pub fn read_nutexb_lut<P: AsRef<Path>>(path: P) -> Result<Lut3dLinear, Box<dyn Error>> {
     // TODO: Error if dimensions aren't supported?
     let nutexb = NutexbFile::read_from_file(path)?;
-    Ok(Lut3dLinear::new(
-        nutexb.footer.depth,
+    Ok(Lut3dLinear::from_rgba(
+        nutexb.footer.depth as usize,
         nutexb.deswizzled_data()?,
     ))
 }
 
-const fn image_size(width: usize, height: usize, depth: usize, bpp: usize) -> usize {
+pub const fn image_size(width: usize, height: usize, depth: usize, bpp: usize) -> usize {
     width * height * depth * bpp
 }
 
@@ -71,13 +74,21 @@ pub fn create_default_lut() -> Vec<u8> {
             }
         }
     }
+
     result
 }
 
+pub fn create_default_lut_f32() -> Vec<f32> {
+    create_default_lut()
+        .into_iter()
+        .map(|u| u as f32 / 255.0)
+        .collect()
+}
+
 /// Converts the data in `lut_linear` to the .cube format and writes it to `output`.
-pub fn linear_lut_to_cube(
+pub fn linear_lut_to_cube<P: AsRef<Path>>(
     lut_linear: &Lut3dLinear,
-    output: &std::path::Path,
+    output: P,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let cube = CubeLut3d::from(lut_linear);
     let mut file = File::create(output)?;

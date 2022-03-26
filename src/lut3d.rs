@@ -1,57 +1,36 @@
 use std::convert::{TryFrom, TryInto};
 
 use image::RgbaImage;
-use nutexb::{ToNutexb, NutexbFormat};
-use tegra_swizzle::surface::{deswizzle_surface, swizzle_surface, BlockDim};
+use nutexb::{NutexbFormat, ToNutexb};
 
-use crate::CubeLut3d;
-
-#[cfg(test)]
-use indoc::indoc;
+use crate::{create_default_lut_f32, CubeLut3d};
 
 /// A 3D RGBA LUT with unswizzled data in row major order.
 /// Values are written to data using a nested ZYX loops with X being the innermost loop.
+// TODO: It makes sense to just use float here instead.
 #[derive(Debug, PartialEq)]
 pub struct Lut3dLinear {
-    size: u32,
-    data: Vec<u8>,
+    /// The dimensions for each axis.
+    pub size: usize,
+    pub data: Vec<f32>,
 }
 
 impl Lut3dLinear {
-    /// The dimension of the LUT for each axis. A LUT with size 16 will have 16x16x16 RGBA values.
-    pub fn size(&self) -> u32 {
-        self.size
+    pub fn from_rgba(size: usize, data: Vec<u8>) -> Self {
+        Self {
+            size,
+            data: data.into_iter().map(|u| u as f32 / 255.0).collect(),
+        }
     }
 
-    pub fn new(size: u32, data: Vec<u8>) -> Lut3dLinear {
-        Lut3dLinear { size, data }
+    pub fn to_rgba(&self) -> Vec<u8> {
+        self.data.iter().map(|f| (f * 255.0) as u8).collect()
     }
-}
 
-impl AsRef<[u8]> for Lut3dLinear {
-    fn as_ref(&self) -> &[u8] {
-        &self.data
-    }
-}
-
-impl From<Lut3dSwizzled> for Lut3dLinear {
-    /// Deswizzle the data in value to create a `Lut3dLinear` of identical size.
-    fn from(value: Lut3dSwizzled) -> Self {
-        let data = deswizzle_surface(
-            16,
-            16,
-            16,
-            &value.data,
-            BlockDim::uncompressed(),
-            None,
-            4,
-            1,
-            1,
-        )
-        .unwrap();
-        Lut3dLinear {
-            size: value.size,
-            data,
+    pub fn default_stage() -> Self {
+        Self {
+            size: 16,
+            data: create_default_lut_f32(),
         }
     }
 }
@@ -60,19 +39,16 @@ impl From<CubeLut3d> for Lut3dLinear {
     fn from(value: CubeLut3d) -> Self {
         let mut data = Vec::new();
 
-        // TODO: How to handle out of range values?
-        let to_u8 = |f: f32| (f * 255f32).min(255f32).round() as u8;
-
-        for &(r, g, b) in value.data() {
-            // Always use 255u8 for alpha to match in game nutexb LUTs.
-            data.push(to_u8(r));
-            data.push(to_u8(g));
-            data.push(to_u8(b));
-            data.push(255u8);
+        for (r, g, b) in value.data {
+            // Always use 1.0 for alpha to match in game nutexb LUTs.
+            data.push(r);
+            data.push(g);
+            data.push(b);
+            data.push(1.0);
         }
 
         Lut3dLinear {
-            size: value.size() as u32,
+            size: value.size as usize,
             data,
         }
     }
@@ -97,12 +73,10 @@ impl TryFrom<&RgbaImage> for Lut3dLinear {
         if value.width() != value.height() * value.height() {
             Err("Invalid dimensions. Expected width to equal height * height.")
         } else {
-            let data = value.as_flat_samples().samples.to_vec();
-            let lut = Lut3dLinear {
-                size: value.height(),
-                data,
-            };
-            Ok(lut)
+            Ok(Lut3dLinear::from_rgba(
+                value.height() as usize,
+                value.as_flat_samples().samples.to_vec(),
+            ))
         }
     }
 }
@@ -111,8 +85,7 @@ impl TryFrom<Lut3dLinear> for RgbaImage {
     type Error = &'static str;
 
     fn try_from(value: Lut3dLinear) -> Result<Self, Self::Error> {
-        RgbaImage::from_raw(value.size * value.size, value.size, value.data)
-            .ok_or("Error creating RgbaImage.")
+        Self::try_from(&value)
     }
 }
 
@@ -120,26 +93,30 @@ impl TryFrom<&Lut3dLinear> for RgbaImage {
     type Error = &'static str;
 
     fn try_from(value: &Lut3dLinear) -> Result<Self, Self::Error> {
-        RgbaImage::from_raw(value.size * value.size, value.size, value.data.clone())
-            .ok_or("Error creating RgbaImage.")
+        RgbaImage::from_raw(
+            (value.size * value.size) as u32,
+            value.size as u32,
+            value.to_rgba(),
+        )
+        .ok_or("Error creating RgbaImage.")
     }
 }
 
 impl ToNutexb for Lut3dLinear {
     fn width(&self) -> u32 {
-        self.size
+        self.size as u32
     }
 
     fn height(&self) -> u32 {
-        self.size
+        self.size as u32
     }
 
     fn depth(&self) -> u32 {
-        self.size
+        self.size as u32
     }
 
     fn image_data(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(self.data.clone())
+        Ok(self.to_rgba())
     }
 
     fn mipmap_count(&self) -> u32 {
@@ -155,64 +132,13 @@ impl ToNutexb for Lut3dLinear {
     }
 }
 
-/// A 3D RGBA LUT with swizzled data.
-#[derive(Debug, PartialEq)]
-pub struct Lut3dSwizzled {
-    size: u32,
-    data: Vec<u8>,
-}
-
-// TODO: Wrap this into another trait to store size, data by ref, etc?
-impl Lut3dSwizzled {
-    /// The dimension of the LUT for each axis. A LUT with size 16 will have 16x16x16 RGBA values.
-    pub fn size(&self) -> u32 {
-        self.size
-    }
-
-    pub fn new(size: u32, data: Vec<u8>) -> Lut3dSwizzled {
-        Lut3dSwizzled { size, data }
-    }
-}
-
-impl AsRef<[u8]> for Lut3dSwizzled {
-    fn as_ref(&self) -> &[u8] {
-        &self.data
-    }
-}
-
-impl From<&Lut3dLinear> for Lut3dSwizzled {
-    /// Swizzle the data in value to create a `Lut3dLinear` of identical size.
-    fn from(value: &Lut3dLinear) -> Self {
-        let mut data = vec![0u8; value.data.len()];
-        let data = swizzle_surface(
-            16,
-            16,
-            16,
-            &value.data,
-            BlockDim::uncompressed(),
-            None,
-            4,
-            1,
-            1,
-        )
-        .unwrap();
-        Lut3dSwizzled {
-            size: value.size,
-            data,
-        }
-    }
-}
-
-impl From<Lut3dLinear> for Lut3dSwizzled {
-    /// Swizzle the data in value to create a `Lut3dLinear` of identical size.
-    fn from(value: Lut3dLinear) -> Self {
-        (&value).into()
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::create_default_lut_f32;
+
     use super::*;
+
+    use indoc::indoc;
 
     #[test]
     fn cube_to_linear() {
@@ -235,20 +161,19 @@ mod tests {
         let linear = Lut3dLinear::from(cube);
 
         assert_eq!(2, linear.size);
-        itertools::assert_equal(
+        assert_eq!(
             &linear.data,
             &[
-                0u8, 0u8, 0u8, 255u8, 255u8, 0u8, 0u8, 255u8, 0u8, 191u8, 0u8, 255u8, 255u8, 191u8,
-                0u8, 255u8, 0u8, 64u8, 255u8, 255u8, 255u8, 64u8, 255u8, 255u8, 0u8, 255u8, 255u8,
-                255u8, 255u8, 255u8, 255u8, 255u8,
+                0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.75, 0.0, 1.0, 1.0, 0.75, 0.0, 1.0,
+                0.0, 0.25, 1.0, 1.0, 1.0, 0.25, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
             ],
         )
     }
 
     #[test]
     fn linear_to_rgba() {
-        let data = crate::create_default_lut().to_vec();
-        let linear = Lut3dLinear { size: 16u32, data };
+        let data = crate::create_default_lut();
+        let linear = Lut3dLinear::from_rgba(16, data);
 
         let img = RgbaImage::try_from(linear).unwrap();
 
@@ -256,14 +181,14 @@ mod tests {
         assert_eq!(16u32, img.height());
 
         // Make sure the pixel values were copied correctly.
-        let data = crate::create_default_lut().to_vec();
-        itertools::assert_equal(&data, img.as_flat_samples().samples.into_iter());
+        let data = crate::create_default_lut();
+        assert_eq!(&data, img.as_flat_samples().samples);
     }
 
     #[test]
     fn linear_ref_to_rgba() {
-        let data = crate::create_default_lut().to_vec();
-        let linear = Lut3dLinear { size: 16u32, data };
+        let data = crate::create_default_lut();
+        let linear = Lut3dLinear::from_rgba(16, data);
 
         let img = RgbaImage::try_from(&linear).unwrap();
 
@@ -271,42 +196,42 @@ mod tests {
         assert_eq!(16u32, img.height());
 
         // Make sure the pixel values were copied correctly.
-        let data = crate::create_default_lut().to_vec();
-        itertools::assert_equal(&data, img.as_flat_samples().samples.into_iter());
+        let data = crate::create_default_lut();
+        assert_eq!(&data, img.as_flat_samples().samples);
     }
 
     #[test]
     fn rgba_ref_to_linear() {
-        let data = crate::create_default_lut().to_vec();
+        let data = crate::create_default_lut();
         let img = RgbaImage::from_raw(256, 16, data).unwrap();
         let linear = Lut3dLinear::try_from(&img).unwrap();
 
-        assert_eq!(16u32, linear.size);
+        assert_eq!(16, linear.size);
         assert_eq!(crate::image_size(16, 16, 16, 4), linear.data.len());
 
         // Make sure the pixel values were copied correctly.
-        let data = crate::create_default_lut().to_vec();
-        itertools::assert_equal(&data, &linear.data);
+        let data = create_default_lut_f32();
+        assert_eq!(&data, &linear.data);
     }
 
     #[test]
     fn rgba_to_linear() {
-        let data = crate::create_default_lut().to_vec();
+        let data = crate::create_default_lut();
         let img = RgbaImage::from_raw(256, 16, data).unwrap();
         let linear = Lut3dLinear::try_from(img).unwrap();
 
-        assert_eq!(16u32, linear.size);
+        assert_eq!(16, linear.size);
         assert_eq!(crate::image_size(16, 16, 16, 4), linear.data.len());
 
         // Make sure the pixel values were copied correctly.
-        let data = crate::create_default_lut().to_vec();
-        itertools::assert_equal(&data, &linear.data);
+        let data = create_default_lut_f32();
+        assert_eq!(&data, &linear.data);
     }
 
     #[test]
     fn rgba_to_linear_invalid_dimensions() {
         // The width should be height^2.
-        let data = crate::create_default_lut().to_vec();
+        let data = crate::create_default_lut();
         let img = RgbaImage::from_raw(128, 32, data).unwrap();
         let linear = Lut3dLinear::try_from(&img);
 
@@ -314,67 +239,5 @@ mod tests {
             linear,
             Err("Invalid dimensions. Expected width to equal height * height.")
         );
-    }
-
-    #[test]
-    fn linear_ref_to_swizzled() {
-        // Test that the data is correctly swizzled when converting.
-        let data = crate::create_default_lut().to_vec();
-        let linear = Lut3dLinear { size: 16u32, data };
-        let swizzled: Lut3dSwizzled = (&linear).into();
-
-        assert_eq!(16u32, swizzled.size);
-
-        // Black swizzled address: 0 (0000 0000 0000 0000)
-        assert_eq!(&[0u8, 0u8, 0u8, 255u8], &swizzled.data[0..4]);
-
-        // Red swizzled address: 300 (0000 0001 0010 1100)
-        assert_eq!(&[255u8, 0u8, 0u8, 255u8], &swizzled.data[300..304]);
-
-        // Green swizzled address: 8400 (0010 0000 1101 0000)
-        assert_eq!(&[0u8, 255u8, 0u8, 255u8], &swizzled.data[8400..8404]);
-
-        // Blue swizzled address: 7680 (0001 1110 0000 0000)
-        assert_eq!(&[0u8, 0u8, 255u8, 255u8], &swizzled.data[7680..7684]);
-    }
-
-    #[test]
-    fn linear_to_swizzled() {
-        // Test that the data is correctly swizzled when converting.
-        let data = crate::create_default_lut().to_vec();
-        let linear = Lut3dLinear { size: 16u32, data };
-        let swizzled: Lut3dSwizzled = linear.into();
-
-        assert_eq!(16u32, swizzled.size);
-
-        // Black swizzled address: 0 (0000 0000 0000 0000)
-        assert_eq!(&[0u8, 0u8, 0u8, 255u8], &swizzled.data[0..4]);
-
-        // Red swizzled address: 300 (0000 0001 0010 1100)
-        assert_eq!(&[255u8, 0u8, 0u8, 255u8], &swizzled.data[300..304]);
-
-        // Green swizzled address: 8400 (0010 0000 1101 0000)
-        assert_eq!(&[0u8, 255u8, 0u8, 255u8], &swizzled.data[8400..8404]);
-
-        // Blue swizzled address: 7680 (0001 1110 0000 0000)
-        assert_eq!(&[0u8, 0u8, 255u8, 255u8], &swizzled.data[7680..7684]);
-    }
-
-    #[test]
-    fn swizzled_to_linear() {
-        // Test that the data is correctly deswizzled when converting.
-        let data = crate::create_default_lut();
-        let swizzled_data =
-            swizzle_surface(16, 16, 16, &data, BlockDim::uncompressed(), None, 4, 1, 1).unwrap();
-
-        let swizzled = Lut3dSwizzled {
-            size: 16u32,
-            data: swizzled_data.to_vec(),
-        };
-        let linear: Lut3dLinear = swizzled.into();
-
-        assert_eq!(16u32, linear.size);
-
-        itertools::assert_equal(data.iter(), &linear.data);
     }
 }

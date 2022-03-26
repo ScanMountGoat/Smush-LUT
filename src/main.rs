@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use smush_lut::Lut3dLinear;
+use smush_lut::{correct_lut, Lut3dLinear};
 
 fn main() {
     let matches = App::new("smush_lut")
@@ -80,19 +80,25 @@ fn save_output(lut_linear: &Lut3dLinear, output: &Path) {
     let export = std::time::Instant::now();
     match output.extension().unwrap().to_str().unwrap() {
         "nutexb" => {
-            smush_lut::write_lut_to_nutexb(lut_linear, &output).unwrap();
+            smush_lut::write_lut_to_nutexb(lut_linear, output).unwrap();
         }
         "cube" => {
-            smush_lut::linear_lut_to_cube(lut_linear, &output).unwrap();
+            smush_lut::linear_lut_to_cube(lut_linear, output).unwrap();
         }
         "bin" => {
             // Dump the unswizzled binary.
             let mut file = File::create(output).unwrap();
-            file.write_all(lut_linear.as_ref()).unwrap();
+            file.write_all(&lut_linear.to_rgba()).unwrap();
         }
         _ => {
+            // TODO: Make correction optional?
+            // TODO: Make the stage lut an optional parameter?
+            let lut_stage = Lut3dLinear::default_stage();
+
+            let lut_final = correct_lut(lut_linear, &lut_stage);
+
             // Assume anything else is some form of supported image format.
-            let img = image::RgbaImage::try_from(lut_linear).unwrap();
+            let img = image::RgbaImage::try_from(lut_final).unwrap();
             img.save(output).unwrap();
         }
     }
