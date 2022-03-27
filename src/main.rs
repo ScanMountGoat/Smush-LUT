@@ -31,6 +31,14 @@ fn main() {
                 .required(false)
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("raw")
+                .short("r")
+                .long("raw")
+                .help("Exports the raw LUT values without any stage LUT compensation")
+                .required(false)
+                .takes_value(false),
+        )
         .get_matches();
 
     let input: PathBuf = matches.value_of("input").unwrap().into();
@@ -51,7 +59,18 @@ fn main() {
     };
 
     let lut_linear = parse_input(&input).unwrap();
-    save_output(&lut_linear, &output);
+
+    // Check if the user wants to disable stage LUT compensation.
+    let lut_final = if matches.is_present("raw") {
+        lut_linear
+    } else {
+        // TODO: Make the stage lut an optional parameter?
+        let lut_stage = Lut3dLinear::default_stage();
+
+        correct_lut(&lut_linear, &lut_stage)
+    };
+
+    save_output(&lut_final, &output);
 }
 
 fn parse_input(input: &Path) -> Option<Lut3dLinear> {
@@ -91,15 +110,8 @@ fn save_output(lut_linear: &Lut3dLinear, output: &Path) {
             file.write_all(&lut_linear.to_rgba()).unwrap();
         }
         _ => {
-            // TODO: Make correction an option for all outputs?
-            // TODO: Make correction optional?
-            // TODO: Make the stage lut an optional parameter?
-            let lut_stage = Lut3dLinear::default_stage();
-
-            let lut_final = correct_lut(lut_linear, &lut_stage);
-
             // Assume anything else is some form of supported image format.
-            let img = image::RgbaImage::try_from(lut_final).unwrap();
+            let img = image::RgbaImage::try_from(lut_linear).unwrap();
             img.save(output).unwrap();
         }
     }
