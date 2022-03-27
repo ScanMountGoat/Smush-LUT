@@ -56,10 +56,6 @@ fn g_x_inv(xi: f32, x: f32) -> f32 {
     (((xi.max(0.0).powf(1.0 / 2.2) / 1.3703) - x) / 0.99961) + x
 }
 
-fn f(srgb: f32) -> f32 {
-    srgb * 0.9375 + 0.03125
-}
-
 fn f_inv(fx: f32) -> f32 {
     (fx - 0.03125) / 0.9375
 }
@@ -81,12 +77,15 @@ fn linear(srgb: f32) -> f32 {
 }
 
 // TODO: Test cases based on debugging in RenderDoc.
-// Test The linear <-> srgb conversions and post processing.
 #[cfg(test)]
 mod tests {
     use approx::assert_relative_eq;
 
     use super::*;
+
+    fn f(srgb: f32) -> f32 {
+        srgb * 0.9375 + 0.03125
+    }
 
     #[test]
     fn srgb_linear_inverse() {
@@ -113,10 +112,9 @@ mod tests {
         // Check that these functions are inverses of each other.
         for x in 0..255 {
             let fx = x as f32 / 255.0;
-            let fx = 0.5;
             let x = f_inv(fx);
-            assert_relative_eq!(x, g(g_x_inv(fx, x), x), epsilon = 0.0001f32);
-            assert_relative_eq!(x, g_x_inv(g(fx, x), x), epsilon = 0.0001f32);
+            assert_relative_eq!(fx, g(g_x_inv(fx, x), x), epsilon = 0.0001f32);
+            assert_relative_eq!(fx, g_x_inv(g(fx, x), x), epsilon = 0.0001f32);
         }
     }
 }

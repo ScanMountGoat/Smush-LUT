@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use image::RgbaImage;
 use nutexb::{NutexbFormat, ToNutexb};
 
-use crate::{create_default_lut_f32, interp::trilinear, CubeLut3d};
+use crate::{create_default_lut_f32, interp::trilinear, CubeLut3d, index3d, create_identity_lut_f32};
 
 /// A 3D RGBA LUT with unswizzled data in row major order.
 /// Values are written to data using a nested ZYX loops with X being the innermost loop.
@@ -38,6 +38,13 @@ impl Lut3dLinear {
         Self {
             size: 16,
             data: create_default_lut_f32(),
+        }
+    }
+
+    pub fn identity() -> Self {
+        Self  {
+            size: 16,
+            data: create_identity_lut_f32()
         }
     }
 
@@ -84,10 +91,6 @@ impl Lut3dLinear {
 
         result
     }
-}
-
-fn index3d(x: usize, y: usize, z: usize, width: usize, height: usize) -> usize {
-    z * width * height + y * width + x
 }
 
 impl From<CubeLut3d> for Lut3dLinear {

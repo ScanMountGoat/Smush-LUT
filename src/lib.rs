@@ -45,11 +45,35 @@ pub fn read_nutexb_lut<P: AsRef<Path>>(path: P) -> Result<Lut3dLinear, Box<dyn E
     ))
 }
 
-pub const fn image_size(width: usize, height: usize, depth: usize, bpp: usize) -> usize {
-    width * height * depth * bpp
+fn index3d(x: usize, y: usize, z: usize, width: usize, height: usize) -> usize {
+    z * width * height + y * width + x
 }
 
-/// Create a linear (not swizzled) 16x16x16 RGB LUT used as the default stage LUT.
+fn create_identity_lut_f32() -> Vec<f32> {
+    let gradient_values: Vec<f32> = (0..16).map(|u| u as f32 / 15.0).collect();
+
+    let bpp = 4;
+    let width = 16;
+    let height = 16;
+    let depth = 16;
+
+    let mut result = vec![0.0; width * height * depth * bpp];
+    for z in 0..depth {
+        for y in 0..height {
+            for x in 0..width {
+                let offset = index3d(x, y, z, 16, 16) * bpp;
+                result[offset] = gradient_values[x];
+                result[offset + 1] = gradient_values[y];
+                result[offset + 2] = gradient_values[z];
+                result[offset + 3] = 1.0;
+            }
+        }
+    }
+
+    result
+}
+
+/// Create a 16x16x16 RGB LUT used as the default stage LUT.
 /// This applies a subtle contrast/saturation adjustment.
 pub fn create_default_lut() -> Vec<u8> {
     let gradient_values = [
@@ -62,11 +86,11 @@ pub fn create_default_lut() -> Vec<u8> {
     let height = 16;
     let depth = 16;
 
-    let mut result = vec![0u8; image_size(16, 16, 16, 4)];
+    let mut result = vec![0u8; width * height * depth * bpp];
     for z in 0..depth {
         for y in 0..height {
             for x in 0..width {
-                let offset = ((z * width * height) + (y * width) + x) * bpp;
+                let offset = index3d(x, y, z, 16, 16) * 4;
                 result[offset] = gradient_values[x];
                 result[offset + 1] = gradient_values[y];
                 result[offset + 2] = gradient_values[z];
