@@ -1,4 +1,4 @@
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use std::{
     convert::TryFrom,
     fs::{self, File},
@@ -9,31 +9,27 @@ use std::{
 use smush_lut::{correct_lut, Lut3dLinear};
 
 fn main() {
-    let matches = App::new("smush_lut")
-        .version("0.2")
+    let matches = Command::new("smush_lut")
+        .version("0.3")
         .author("SMG")
-        .about("Convert 3D color grading LUTs for Smash Ultimate")
+        .about("Create 3D color grading LUTs for Smash Ultimate")
         .arg(
-            Arg::with_name("input")
+            Arg::new("input")
                 .index(1)
-                .short("i")
-                .long("input")
                 .help("the input image, .cube, or .nutexb file")
                 .required(true)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("output")
+            Arg::new("output")
                 .index(2)
-                .short("o")
-                .long("output")
                 .help("the output image, .cube, .nutexb, or .bin file")
                 .required(false)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("raw")
-                .short("r")
+            Arg::new("raw")
+                .short('r')
                 .long("raw")
                 .help("Exports the raw LUT values without any stage LUT compensation")
                 .required(false)

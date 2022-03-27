@@ -3,7 +3,9 @@ use std::convert::{TryFrom, TryInto};
 use image::RgbaImage;
 use nutexb::{NutexbFormat, ToNutexb};
 
-use crate::{create_default_lut_f32, interp::trilinear, CubeLut3d, index3d, create_identity_lut_f32};
+use crate::{
+    create_default_lut_f32, create_identity_lut_f32, index3d, interp::trilinear, CubeLut3d,
+};
 
 /// A 3D RGBA LUT with unswizzled data in row major order.
 /// Values are written to data using a nested ZYX loops with X being the innermost loop.
@@ -42,9 +44,9 @@ impl Lut3dLinear {
     }
 
     pub fn identity() -> Self {
-        Self  {
+        Self {
             size: 16,
-            data: create_identity_lut_f32()
+            data: create_identity_lut_f32(),
         }
     }
 
@@ -265,7 +267,7 @@ mod tests {
         let linear = Lut3dLinear::try_from(&img).unwrap();
 
         assert_eq!(16, linear.size);
-        assert_eq!(crate::image_size(16, 16, 16, 4), linear.data.len());
+        assert_eq!(16 * 16 * 16 * 4, linear.data.len());
 
         // Make sure the pixel values were copied correctly.
         let data = create_default_lut_f32();
@@ -279,7 +281,7 @@ mod tests {
         let linear = Lut3dLinear::try_from(img).unwrap();
 
         assert_eq!(16, linear.size);
-        assert_eq!(crate::image_size(16, 16, 16, 4), linear.data.len());
+        assert_eq!(16 * 16 * 16 * 4, linear.data.len());
 
         // Make sure the pixel values were copied correctly.
         let data = create_default_lut_f32();
