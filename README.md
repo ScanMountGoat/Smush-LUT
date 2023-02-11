@@ -25,3 +25,6 @@ Create a new color lookup adjustment layer by clicking the adjustment layer icon
 
 ### Affinity Photo 
 Similar to Photoshop, create a new LUT adjustment layer by clicking the adjustment layer icon and selecting "LUT". Click "Load LUT" and select the .cube file exported earlier. 
+
+## Color Correction
+The color grading LUT is not the last step applied to the rendered image. Editing the LUT colors directly will result in unexpected colors in game. The color correction step accounts for the post processing passes in game and adjusts the final LUT values to produce the desired output colors as closely as possible. See the color correction page for a mathematical explanation for how this works. Pass the `--raw` flag to read and write LUT values directly without any modifications.
