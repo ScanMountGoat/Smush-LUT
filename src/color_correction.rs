@@ -78,7 +78,6 @@ fn linear(srgb: f32) -> f32 {
     }
 }
 
-// TODO: Test cases based on debugging in RenderDoc.
 #[cfg(test)]
 mod tests {
     use approx::assert_relative_eq;
@@ -128,5 +127,15 @@ mod tests {
         // TODO: Investigate if it's possible to reduce this error.
         let corrected = correct_lut(&lut_edit, &lut_stage);
         assert_relative_eq!(corrected.data[..], lut_edit.data[..], epsilon = 0.1f32);
+    }
+
+    #[test]
+    fn correct_identity_stage_lut() {
+        let lut_edit = Lut3dLinear::identity();
+        let lut_stage = Lut3dLinear::default_stage();
+
+        // TODO: Investigate if it's possible to reduce this error.
+        let corrected = correct_lut(&lut_edit, &lut_stage);
+        assert_relative_eq!(corrected.data[..], lut_stage.data[..], epsilon = 0.1f32);
     }
 }
