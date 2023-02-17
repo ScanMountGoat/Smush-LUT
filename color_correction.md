@@ -13,6 +13,20 @@ $g_x$ and $f$ are both invertible, and $linear$ and $srgb$ are inverses of each 
 $$lut_{final}(f(x)) = g_x^{-1}(linear(lut_{edit}(srgb(g_x(lut_{stage}(f(x)))))))$$
 Let $x_i = f(x)$, so  
 $$lut_{final}(x_i) = g_x^{-1}(linear(lut_{edit}(srgb(g_x(lut_{stage}(x_i))))))$$
-Now we can construct the lookup table $lut_{final}$ by sampling RGB points $x_i$.
-This sampling process introduces some error since we only sample a 16x16x16 grid instead of the full 256x256x256 RGB grid. 
-The function evaluations also introduce some errors due to rounding and truncation due to LUTs only use 8 bits per color channel.
+Now we can construct the lookup table $lut_{final}$ by sampling RGB points $x_i$. This sampling process introduces some error since we only sample a 16x16x16 grid instead of the full 256x256x256 RGB grid. The function evaluations also introduce some errors due to rounding and truncation due to LUTs only use 8 bits per color channel.
+
+Consider the case where $lut_{stage}$ and $lut_{edit}$ are both the identity.
+$$lut_{final}(x_i) = g_x^{-1}(linear(lut_{edit}(srgb(g_x(lut_{stage}(x_i))))))$$
+The luts are the identity transform, so simplifying gives
+$$lut_{final}(x_i) = g_x^{-1}(linear(srgb(g_x(x_i))))$$
+$linear$ and $srgb$ are inverses of each other, so we get
+$$lut_{final}(x_i) = g_x^{-1}(g_x(x_i)) = x_i$$
+Thus, $lut_{final}$ must also be the identity LUT.
+
+Consider a similar case where only the user edited lut $lut_{edit}$ is the identity lut.
+$$lut_{final}(x_i) = g_x^{-1}(linear(lut_{edit}(srgb(g_x(lut_{stage}(x_i))))))$$
+The $lut_{edit}$ is the identity transform, so simplify to get
+$$lut_{final}(x_i) = g_x^{-1}(linear(srgb(g_x(lut_{stage}(x_i)))))$$
+$$lut_{final}(x_i) = g_x^{-1}(g_x(lut_{stage}(x_i)))$$
+$$lut_{final}(x_i) = lut_{stage}(x_i)$$
+Thus, $lut_{final}$ must be identical to the original $lut_{stage}$ if the user makes no changes to the stage screenshot.

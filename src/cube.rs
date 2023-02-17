@@ -51,7 +51,7 @@ impl CubeLut3d {
 
         file.write_all(b"#LUT data points\n")?;
         for (r, g, b) in &self.data {
-            writeln!(&mut file, "{} {} {}", r, g, b)?
+            writeln!(&mut file, "{r} {g} {b}")?
         }
 
         file.flush()?;

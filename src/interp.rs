@@ -52,14 +52,15 @@ pub fn trilinear(
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
     fn linear_interpolation() {
+        assert_eq!(-1.0, linear(-1.0, 0.0, 1.0, 0.0, 1.0));
         assert_eq!(0.0, linear(0.0, 0.0, 1.0, 0.0, 1.0));
         assert_eq!(0.5, linear(0.5, 0.0, 1.0, 0.0, 1.0));
         assert_eq!(1.0, linear(1.0, 0.0, 1.0, 0.0, 1.0));
+        assert_eq!(2.0, linear(2.0, 0.0, 1.0, 0.0, 1.0));
     }
 
     #[test]

@@ -49,22 +49,17 @@ fn index3d(x: usize, y: usize, z: usize, width: usize, height: usize) -> usize {
     z * width * height + y * width + x
 }
 
-fn create_identity_lut_f32() -> Vec<f32> {
-    let gradient_values: Vec<f32> = (0..16).map(|u| u as f32 / 15.0).collect();
+fn create_identity_lut_f32(size: usize) -> Vec<f32> {
+    let channels = 4;
 
-    let bpp = 4;
-    let width = 16;
-    let height = 16;
-    let depth = 16;
-
-    let mut result = vec![0.0; width * height * depth * bpp];
-    for z in 0..depth {
-        for y in 0..height {
-            for x in 0..width {
-                let offset = index3d(x, y, z, 16, 16) * bpp;
-                result[offset] = gradient_values[x];
-                result[offset + 1] = gradient_values[y];
-                result[offset + 2] = gradient_values[z];
+    let mut result = vec![0.0; size * size * size * channels];
+    for z in 0..size {
+        for y in 0..size {
+            for x in 0..size {
+                let offset = index3d(x, y, z, size, size) * channels;
+                result[offset] = x as f32 / (size - 1) as f32;
+                result[offset + 1] = y as f32 / (size - 1) as f32;
+                result[offset + 2] = z as f32 / (size - 1) as f32;
                 result[offset + 3] = 1.0;
             }
         }

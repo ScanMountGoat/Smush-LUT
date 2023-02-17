@@ -72,16 +72,16 @@ fn main() {
 fn parse_input(input: &Path) -> Option<Lut3dLinear> {
     let parse = std::time::Instant::now();
     let lut_linear: Option<Lut3dLinear> = match input.extension().unwrap().to_str().unwrap() {
-        "nutexb" => smush_lut::read_nutexb_lut(&input).ok(),
+        "nutexb" => smush_lut::read_nutexb_lut(input).ok(),
         "cube" => {
-            let contents = fs::read_to_string(&input).unwrap();
+            let contents = fs::read_to_string(input).unwrap();
             let cube = smush_lut::CubeLut3d::from_text(&contents).unwrap();
 
             Some(cube.into())
         }
         _ => {
             // Assume anything else is some form of supported image format.
-            let img = image::open(&input).unwrap().into_rgba8();
+            let img = image::open(input).unwrap().into_rgba8();
             Lut3dLinear::try_from(&img).ok()
         }
     };

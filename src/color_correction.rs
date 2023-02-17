@@ -1,35 +1,35 @@
 use crate::Lut3dLinear;
 
-// Calculate the final stage LUT for a LUT applied to a stage screenshot.
-// See lut.ipynb for the underlying math and a 1D Python implementation.
 pub fn correct_lut(lut_edit: &Lut3dLinear, lut_stage: &Lut3dLinear) -> Lut3dLinear {
+    // Calculate the final stage LUT for a LUT applied to a stage screenshot.
     let mut lut_final = Lut3dLinear::empty_rgba(lut_edit.size);
 
-    // TODO: Tests to make sure this works?
     // TODO: Figure out ways to make this more efficient.
     for z_index in 0..lut_edit.size {
         for y_index in 0..lut_edit.size {
             for x_index in 0..lut_edit.size {
-                // Sample each point in the lut.
-                // fx = f(srgb)
+                // TODO: Make functions over [f32; 4] so this can match the docs.
+                // Sample each point xi = f(x) in the lut.
                 // TODO: Test on empty lut?
-                let fx = [
+                let xi = [
                     x_index as f32 / (lut_edit.size - 1) as f32,
                     y_index as f32 / (lut_edit.size - 1) as f32,
                     z_index as f32 / (lut_edit.size - 1) as f32,
                 ];
 
-                // srgb = finv(fx)
-                let x = fx.map(f_inv);
+                // result = lut_stage(xi)
+                let mut result = lut_stage.sample_rgba_trilinear(xi[0], xi[1], xi[2]);
 
-                let mut result = lut_stage.sample_rgba_trilinear(fx[0], fx[1], fx[2]);
-
+                // result = srgb(g_x(lut_stage(xi)))
+                let x = xi.map(f_inv);
                 for c in 0..3 {
-                    result[c] = srgb(g(result[c], x[c]));
+                    result[c] = srgb(g_x(result[c], x[c]));
                 }
 
+                // result = lut_edit(srgb(g_x(lut_stage(xi))))
                 result = lut_edit.sample_rgba_trilinear(result[0], result[1], result[2]);
 
+                // result = g_x_inv(linear(lut_edit(srgb(g_x(lut_stage(xi))))))
                 for c in 0..3 {
                     result[c] = g_x_inv(linear(result[c]), x[c]);
                 }
@@ -37,6 +37,8 @@ pub fn correct_lut(lut_edit: &Lut3dLinear, lut_stage: &Lut3dLinear) -> Lut3dLine
                 // Alpha is always 1.0.
                 result[3] = 1.0;
 
+                // lut_final(xi) = g_x_inv(linear(lut_edit(srgb(g_x(lut_stage(xi))))))
+                // https://github.com/ScanMountGoat/Smush-LUT/blob/master/color_correction.md
                 lut_final.set_rgba(x_index, y_index, z_index, result);
             }
         }
@@ -45,7 +47,7 @@ pub fn correct_lut(lut_edit: &Lut3dLinear, lut_stage: &Lut3dLinear) -> Lut3dLine
     lut_final
 }
 
-fn g(xi: f32, x: f32) -> f32 {
+fn g_x(xi: f32, x: f32) -> f32 {
     (((xi - x) * 0.99961 + x) * 1.3703).max(0.0).powf(2.2)
 }
 
@@ -113,8 +115,18 @@ mod tests {
         for x in 0..255 {
             let fx = x as f32 / 255.0;
             let x = f_inv(fx);
-            assert_relative_eq!(fx, g(g_x_inv(fx, x), x), epsilon = 0.0001f32);
-            assert_relative_eq!(fx, g_x_inv(g(fx, x), x), epsilon = 0.0001f32);
+            assert_relative_eq!(fx, g_x(g_x_inv(fx, x), x), epsilon = 0.0001f32);
+            assert_relative_eq!(fx, g_x_inv(g_x(fx, x), x), epsilon = 0.0001f32);
         }
+    }
+
+    #[test]
+    fn correct_identity_lut() {
+        let lut_edit = Lut3dLinear::identity();
+        let lut_stage = Lut3dLinear::identity();
+
+        // TODO: Investigate if it's possible to reduce this error.
+        let corrected = correct_lut(&lut_edit, &lut_stage);
+        assert_relative_eq!(corrected.data[..], lut_edit.data[..], epsilon = 0.1f32);
     }
 }

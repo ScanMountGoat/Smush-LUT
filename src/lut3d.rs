@@ -46,7 +46,7 @@ impl Lut3dLinear {
     pub fn identity() -> Self {
         Self {
             size: 16,
-            data: create_identity_lut_f32(),
+            data: create_identity_lut_f32(16),
         }
     }
 
@@ -55,20 +55,31 @@ impl Lut3dLinear {
         self.data[i * 4..i * 4 + 4].copy_from_slice(&rgba);
     }
 
+    /// Samples a point in the LUT using 3D coordinates in the range `0.0` to `1.0`.
+    /// Coordinate values outside this range are preserved.
     pub fn sample_rgba_trilinear(&self, x: f32, y: f32, z: f32) -> [f32; 4] {
+        // Preserve out of bounds values instead of clamping to 0.0 to 1.0.
+        // TODO: Is there a better way to extrapolate?
+        if !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) || !(0.0..=1.0).contains(&z) {
+            return [x, y, z, 1.0];
+        }
+
         let mut result = [0.0; 4];
 
         // TODO: Does this work for an empty lut?
+        let max_index = (self.size - 1) as f32;
+
+        // Find the endpoints of the 2x2 region containing the xyz coordinate.
+        let x0 = ((x * max_index) as usize).clamp(0, self.size - 1);
+        let x1 = ((x * max_index).ceil() as usize).clamp(0, self.size - 1);
+
+        let y0 = ((y * max_index) as usize).clamp(0, self.size - 1);
+        let y1 = ((y * max_index).ceil() as usize).clamp(0, self.size - 1);
+
+        let z0 = ((z * max_index) as usize).clamp(0, self.size - 1);
+        let z1 = ((z * max_index).ceil() as usize).clamp(0, self.size - 1);
+
         for c in 0..4 {
-            let x0 = ((x * (self.size - 1) as f32) as usize).clamp(0, self.size - 1);
-            let x1 = ((x * (self.size - 1) as f32).ceil() as usize).clamp(0, self.size - 1);
-
-            let y0 = ((y * (self.size - 1) as f32) as usize).clamp(0, self.size - 1);
-            let y1 = ((y * (self.size - 1) as f32).ceil() as usize).clamp(0, self.size - 1);
-
-            let z0 = ((z * (self.size - 1) as f32) as usize).clamp(0, self.size - 1);
-            let z1 = ((z * (self.size - 1) as f32).ceil() as usize).clamp(0, self.size - 1);
-
             let f000 = self.data[index3d(x0, y0, z0, self.size, self.size) * 4 + c];
             let f001 = self.data[index3d(x1, y0, z0, self.size, self.size) * 4 + c];
             let f010 = self.data[index3d(x0, y1, z0, self.size, self.size) * 4 + c];
@@ -299,5 +310,44 @@ mod tests {
             linear,
             Err("Invalid dimensions. Expected width to equal height * height.")
         );
+    }
+
+    #[test]
+    fn sample_rgba_trilinear_single_pixel() {
+        let lut = Lut3dLinear {
+            size: 1,
+            data: vec![1.0, 2.0, 3.0, 4.0],
+        };
+        assert_eq!(
+            [1.0, 2.0, 3.0, 4.0],
+            lut.sample_rgba_trilinear(0.0, 0.0, 0.0)
+        )
+    }
+
+    #[test]
+    fn sample_rgba_trilinear_single_pixel_out_of_bounds() {
+        let lut = Lut3dLinear {
+            size: 2,
+            data: create_identity_lut_f32(2),
+        };
+        assert_eq!(
+            [1.1, 1.2, 1.3, 1.0],
+            lut.sample_rgba_trilinear(1.1, 1.2, 1.3)
+        )
+    }
+
+    #[test]
+    fn sample_rgba_trilinear_2x2x2() {
+        let lut = Lut3dLinear {
+            size: 2,
+            data: vec![
+                1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+                1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+            ],
+        };
+        assert_eq!(
+            [0.5, 0.5, 0.5, 0.5],
+            lut.sample_rgba_trilinear(0.5, 0.5, 0.5)
+        )
     }
 }
