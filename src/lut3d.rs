@@ -58,12 +58,6 @@ impl Lut3dLinear {
     /// Samples a point in the LUT using 3D coordinates in the range `0.0` to `1.0`.
     /// Coordinate values outside this range are preserved.
     pub fn sample_rgba_trilinear(&self, x: f32, y: f32, z: f32) -> [f32; 4] {
-        // Preserve out of bounds values instead of clamping to 0.0 to 1.0.
-        // TODO: Is there a better way to extrapolate?
-        if !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) || !(0.0..=1.0).contains(&z) {
-            return [x, y, z, 1.0];
-        }
-
         let mut result = [0.0; 4];
 
         // TODO: Does this work for an empty lut?
@@ -79,7 +73,7 @@ impl Lut3dLinear {
         let z0 = ((z * max_index) as usize).clamp(0, self.size - 1);
         let z1 = ((z * max_index).ceil() as usize).clamp(0, self.size - 1);
 
-        for c in 0..4 {
+        for (c, component) in result.iter_mut().enumerate() {
             let f000 = self.data[index3d(x0, y0, z0, self.size, self.size) * 4 + c];
             let f001 = self.data[index3d(x1, y0, z0, self.size, self.size) * 4 + c];
             let f010 = self.data[index3d(x0, y1, z0, self.size, self.size) * 4 + c];
@@ -89,8 +83,7 @@ impl Lut3dLinear {
             let f110 = self.data[index3d(x0, y1, z1, self.size, self.size) * 4 + c];
             let f111 = self.data[index3d(x1, y1, z1, self.size, self.size) * 4 + c];
 
-            // TODO: Does this correctly clamp to edge?
-            result[c] = trilinear(
+            *component = trilinear(
                 (x, y, z),
                 0.0,
                 1.0,
