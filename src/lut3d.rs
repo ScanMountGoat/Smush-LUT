@@ -58,20 +58,20 @@ impl Lut3dLinear {
     /// Samples a point in the LUT using 3D coordinates in the range `0.0` to `1.0`.
     /// Coordinate values outside this range are preserved.
     pub fn sample_rgba_trilinear(&self, x: f32, y: f32, z: f32) -> [f32; 4] {
+        // Preserve out of bounds values instead of clamping to 0.0 to 1.0.
+        // TODO: Is there a proper way to extrapolate?
+        let x = x.clamp(0.0, 1.0);
+        let y = y.clamp(0.0, 1.0);
+        let z = z.clamp(0.0, 1.0);
+
         let mut result = [0.0; 4];
 
-        // TODO: Does this work for an empty lut?
-        let max_index = (self.size - 1) as f32;
-
         // Find the endpoints of the 2x2 region containing the xyz coordinate.
-        let x0 = ((x * max_index) as usize).clamp(0, self.size - 1);
-        let x1 = ((x * max_index).ceil() as usize).clamp(0, self.size - 1);
+        let (x0, x1) = find_endpoints(x, self.size);
+        let (y0, y1) = find_endpoints(y, self.size);
+        let (z0, z1) = find_endpoints(z, self.size);
 
-        let y0 = ((y * max_index) as usize).clamp(0, self.size - 1);
-        let y1 = ((y * max_index).ceil() as usize).clamp(0, self.size - 1);
-
-        let z0 = ((z * max_index) as usize).clamp(0, self.size - 1);
-        let z1 = ((z * max_index).ceil() as usize).clamp(0, self.size - 1);
+        let max_index = (self.size - 1).max(1) as f32;
 
         for (c, component) in result.iter_mut().enumerate() {
             let f000 = self.data[index3d(x0, y0, z0, self.size, self.size) * 4 + c];
@@ -85,12 +85,12 @@ impl Lut3dLinear {
 
             *component = trilinear(
                 (x, y, z),
-                0.0,
-                1.0,
-                0.0,
-                1.0,
-                0.0,
-                1.0,
+                x0 as f32 / max_index,
+                x1 as f32 / max_index,
+                y0 as f32 / max_index,
+                y1 as f32 / max_index,
+                z0 as f32 / max_index,
+                z1 as f32 / max_index,
                 [f000, f001, f010, f011, f100, f101, f110, f111],
             );
         }
@@ -109,6 +109,14 @@ impl Lut3dLinear {
             image_format: NutexbFormat::R8G8B8A8Unorm,
         }
     }
+}
+
+fn find_endpoints(x: f32, n: usize) -> (usize, usize) {
+    // Find the endpoints containing the coordinate.
+    // TODO: Extrapolate?
+    let max_index = (n - 1) as f32;
+    let x0 = (x * max_index) as usize;
+    (x0, (x0 + 1).min(n - 1))
 }
 
 impl From<CubeLut3d> for Lut3dLinear {

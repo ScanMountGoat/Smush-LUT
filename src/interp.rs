@@ -1,7 +1,12 @@
 // https://en.wikipedia.org/wiki/Trilinear_interpolation
 pub fn linear(x: f32, x0: f32, x1: f32, f0: f32, f1: f32) -> f32 {
-    let factor = (x - x0) / (x1 - x0);
-    (1.0 - factor) * f0 + factor * f1
+    if x0 == x1 {
+        // TODO: should this case happen?
+        f0
+    } else {
+        let factor = (x - x0) / (x1 - x0);
+        f0 + (f1 - f0) * factor
+    }
 }
 
 pub fn bilinear(xy: (f32, f32), x0: f32, x1: f32, y0: f32, y1: f32, fxy: [f32; 4]) -> f32 {
