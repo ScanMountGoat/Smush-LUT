@@ -29,8 +29,8 @@ pub fn write_lut_to_nutexb<P: AsRef<Path>>(
     lut: &Lut3dLinear,
     path: P,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // TODO: This only works for size 16?
-    NutexbFile::create(lut, "color_grading_lut")?.write_to_file(path)
+    NutexbFile::from_surface(lut.to_surface(), "color_grading_lut")?.write_to_file(path)?;
+    Ok(())
 }
 
 /// Attempts to read the color grading LUT data from the given path.

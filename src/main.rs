@@ -1,4 +1,4 @@
-use clap::{Arg, Command};
+use clap::Parser;
 use std::{
     convert::TryFrom,
     fs::{self, File},
@@ -8,36 +8,26 @@ use std::{
 
 use smush_lut::{correct_lut, Lut3dLinear};
 
-fn main() {
-    let matches = Command::new("smush_lut")
-        .version("0.3")
-        .author("SMG")
-        .about("Create 3D color grading LUTs for Smash Ultimate")
-        .arg(
-            Arg::new("input")
-                .index(1)
-                .help("the input image, .cube, or .nutexb file")
-                .required(true)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::new("output")
-                .index(2)
-                .help("the output image, .cube, .nutexb, or .bin file")
-                .required(false)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::new("raw")
-                .short('r')
-                .long("raw")
-                .help("Exports the raw LUT values without any stage LUT compensation")
-                .required(false)
-                .takes_value(false),
-        )
-        .get_matches();
+/// Create 3D color grading LUTs for Smash Ultimate
+#[derive(Parser)]
+#[command(author, version, about)]
+#[command(propagate_version = true)]
+struct Cli {
+    /// The input image, .cube, or .nutexb file
+    input: String,
 
-    let input: PathBuf = matches.value_of("input").unwrap().into();
+    /// The output image, .cube, .nutexb, or .bin file
+    output: Option<String>,
+
+    /// Export the raw LUT values without any stage LUT compensation
+    #[arg(short, long)]
+    raw: bool,
+}
+
+fn main() {
+    let cli = Cli::parse();
+
+    let input: PathBuf = cli.input.into();
 
     let input_extension = input
         .extension()
@@ -46,7 +36,7 @@ fn main() {
         .expect("The input file must have an extension.");
 
     // Use the default conversion if no output is specified.
-    let output: PathBuf = match matches.value_of("output") {
+    let output: PathBuf = match cli.output {
         Some(path) => path.into(),
         None => match input_extension {
             "nutexb" => input.with_extension("png").to_str().unwrap().into(),
@@ -57,7 +47,7 @@ fn main() {
     let lut_linear = parse_input(&input).unwrap();
 
     // Check if the user wants to disable stage LUT compensation.
-    let lut_final = if matches.is_present("raw") {
+    let lut_final = if cli.raw {
         lut_linear
     } else {
         // TODO: Make the stage lut an optional parameter?

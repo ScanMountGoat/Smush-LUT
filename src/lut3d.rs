@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use image::RgbaImage;
-use nutexb::{NutexbFormat, ToNutexb};
+use nutexb::{NutexbFormat, Surface};
 
 use crate::{
     create_default_lut_f32, create_identity_lut_f32, index3d, interp::trilinear, CubeLut3d,
@@ -97,6 +97,18 @@ impl Lut3dLinear {
 
         result
     }
+
+    pub fn to_surface(&self) -> Surface<Vec<u8>> {
+        Surface {
+            width: self.size as u32,
+            height: self.size as u32,
+            depth: self.size as u32,
+            image_data: self.to_rgba(),
+            mipmap_count: 1,
+            layer_count: 1,
+            image_format: NutexbFormat::R8G8B8A8Unorm,
+        }
+    }
 }
 
 impl From<CubeLut3d> for Lut3dLinear {
@@ -163,36 +175,6 @@ impl TryFrom<&Lut3dLinear> for RgbaImage {
             value.to_rgba(),
         )
         .ok_or("Error creating RgbaImage.")
-    }
-}
-
-impl ToNutexb for Lut3dLinear {
-    fn width(&self) -> u32 {
-        self.size as u32
-    }
-
-    fn height(&self) -> u32 {
-        self.size as u32
-    }
-
-    fn depth(&self) -> u32 {
-        self.size as u32
-    }
-
-    fn image_data(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(self.to_rgba())
-    }
-
-    fn mipmap_count(&self) -> u32 {
-        1
-    }
-
-    fn layer_count(&self) -> u32 {
-        1
-    }
-
-    fn image_format(&self) -> Result<nutexb::NutexbFormat, Box<dyn std::error::Error>> {
-        Ok(NutexbFormat::R8G8B8A8Unorm)
     }
 }
 
