@@ -1,4 +1,4 @@
-# Smush-LUT
+# Smush-LUT [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ScanMountGoat/Smush-LUT?include_prereleases)](https://github.com/ScanMountGoat/Smush-LUT/releases/latest)
 <img src="https://raw.githubusercontent.com/ScanMountGoat/Smush-LUT/master/neutral.png" height="auto" width="100%">  
 
 Create color grading 3D LUTs for Smash Ultimate. Learn more about how these textures work and the effects that can be achieved on the [color grading lut](https://scanmountgoat.github.io/Smush-Material-Research/post_processing/colorgradinglut/) page of the Smash Ultimate Material Research website. A windows executable is available in [Releases](https://github.com/ScanMountGoat/Smush-LUT/releases).
