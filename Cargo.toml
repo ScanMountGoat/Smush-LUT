@@ -1,6 +1,6 @@
 [package]
 name = "smush_lut"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["SMG <>"]
 edition = "2018"
 
