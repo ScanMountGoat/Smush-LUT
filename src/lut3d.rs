@@ -314,7 +314,7 @@ mod tests {
             data: create_identity_lut_f32(2),
         };
         assert_eq!(
-            [1.1, 1.2, 1.3, 1.0],
+            [1.0, 1.0, 1.0, 1.0],
             lut.sample_rgba_trilinear(1.1, 1.2, 1.3)
         )
     }

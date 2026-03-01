@@ -80,12 +80,28 @@ fn linear(srgb: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use approx::assert_relative_eq;
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
 
     use super::*;
 
     fn f(srgb: f32) -> f32 {
         srgb * 0.9375 + 0.03125
+    }
+
+    fn actual_color(x: [f32; 3], lut_final: &Lut3dLinear) -> [f32; 3] {
+        // The actual color that will render in game.
+        // srgb(g(lut_final(f(x)), x))
+        let xi = lut_final.sample_rgba_trilinear(f(x[0]), x[1], x[2]);
+        std::array::from_fn(|i| srgb(g_x(xi[i], x[i])))
+    }
+
+    fn expected_color(x: [f32; 3], lut_edit: &Lut3dLinear, lut_stage: &Lut3dLinear) -> [f32; 3] {
+        // The final color edited by the user in an image editor.
+        // lut_edit(srgb(g(lut_stage(f(x)), x)))
+        let xi = lut_stage.sample_rgba_trilinear(f(x[0]), x[1], x[2]);
+        let [x, y, z] = std::array::from_fn(|i| srgb(g_x(xi[i], x[i])));
+        let [r, g, b, _] = lut_edit.sample_rgba_trilinear(x, y, z);
+        [r, g, b]
     }
 
     #[test]
@@ -124,9 +140,22 @@ mod tests {
         let lut_edit = Lut3dLinear::identity();
         let lut_stage = Lut3dLinear::identity();
 
-        // TODO: Investigate if it's possible to reduce this error.
-        let corrected = correct_lut(&lut_edit, &lut_stage);
-        assert_relative_eq!(corrected.data[..], lut_edit.data[..], epsilon = 0.1f32);
+        let lut_final = correct_lut(&lut_edit, &lut_stage);
+
+        // The final lut colors may be clipped after accounting for post processing.
+        // We only care that the final result in game matches the edited screenshot.
+        for x in 0..16 {
+            for y in 0..16 {
+                for z in 0..16 {
+                    let xyz = [x as f32 / 15.0, y as f32 / 15.0, z as f32 / 15.0];
+                    assert_abs_diff_eq!(
+                        actual_color(xyz, &lut_final)[..],
+                        expected_color(xyz, &lut_edit, &lut_stage)[..],
+                        epsilon = 1.0 / 255.0
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -134,8 +163,22 @@ mod tests {
         let lut_edit = Lut3dLinear::identity();
         let lut_stage = Lut3dLinear::default_stage();
 
-        // TODO: Investigate if it's possible to reduce this error.
-        let corrected = correct_lut(&lut_edit, &lut_stage);
-        assert_relative_eq!(corrected.data[..], lut_stage.data[..], epsilon = 0.1f32);
+        let lut_final = correct_lut(&lut_edit, &lut_stage);
+
+        // The final lut colors may be clipped after accounting for post processing.
+        // We only care that the final result in game matches the edited screenshot.
+        for x in 0..16 {
+            for y in 0..16 {
+                for z in 0..16 {
+                    // TODO: is it possible to reduce this error?
+                    let xyz = [x as f32 / 15.0, y as f32 / 15.0, z as f32 / 15.0];
+                    assert_abs_diff_eq!(
+                        actual_color(xyz, &lut_final)[..],
+                        expected_color(xyz, &lut_edit, &lut_stage)[..],
+                        epsilon = 3.0 / 255.0
+                    );
+                }
+            }
+        }
     }
 }
